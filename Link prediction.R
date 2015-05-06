@@ -10,22 +10,27 @@ library(reshape2)
 options(java.parameters = "-Xmx4g")
 
 rm(list=ls(all=TRUE))
+
+edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_1.sorted.txt',sep = ",",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_2.sorted.txt',sep = ",",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_3.sorted.txt',sep = ",",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+
 #edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_2m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 #edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_4m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 #edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_6m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 
-edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
-edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_after.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
-edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_pred.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_after.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_pred.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 
 #edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_12m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 #edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_14m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 #edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_16m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 
 
-edgelist_source<-edgelist_source[order(edgelist_source$client),]
-edgelist_target<-edgelist_target[order(edgelist_target$client),]
-edgelist_pred<-edgelist_pred[order(edgelist_pred$client),]
+#edgelist_source<-edgelist_source[order(edgelist_source$client),]
+#edgelist_target<-edgelist_target[order(edgelist_target$client),]
+#edgelist_pred<-edgelist_pred[order(edgelist_pred$client),]
 
 
 #Detect new edges between the target and the source data sets
@@ -56,14 +61,13 @@ sample_c<-edgelist_pred #predict data frame
 
 
 #set the number of eigenvalues to be caluclated
-r=10
+r=100
 
 g_a <- graph.data.frame(sample_a,directed = FALSE)
 V(g_a)$type <- V(g_a)$name %in% sample_a[,1]
-#is.bipartite(g_a) #verify graph is bipartite
-#get.edgelist(g, names=TRUE)# to verify this was done properly
+is.bipartite(g_a) #verify graph is bipartite
+get.edgelist(g_a, names=TRUE)[1:10,]# to verify this was done properly
 adj_a <- get.adjacency(g_a, sparse = TRUE,type=c("both"))
-adj_a[is.na(adj_a)] <- 0
 image(adj_a)
 
 
@@ -83,7 +87,6 @@ adj_b <- get.adjacency(g_b, sparse = TRUE)
 col.order <- dimnames(adj_a)[[1]]
 row.order <- dimnames(adj_a)[[2]]
 adj_b <- adj_b[row.order,col.order]
-adj_b[is.na(adj_b)] <- 0
 image(adj_b)
 
 f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_b %*% x) }
@@ -172,7 +175,6 @@ image(sim_test,main = "Eigenvector stability")
 
 #spectral diagonality test
 sd <- t(baev_a$vectors) %*% ne %*% baev_a$vectors
-dim(sd)
 image(sd)
 
 
