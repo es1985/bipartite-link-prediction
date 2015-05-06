@@ -11,18 +11,22 @@ require(irlba)
 options(java.parameters = "-Xmx4g")
 
 rm(list=ls(all=TRUE))
-edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_2m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
-edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_4m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
-edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_6m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 
 #edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 #edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_after.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 #edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_pred.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
 
+edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_2m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_6m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_6m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+
+#edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_12m.sorted.txt',sep = ",",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_14m.sorted.txt',sep = ",",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_16m.sorted.txt',sep = ",",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+
 edgelist_source<-edgelist_source[order(edgelist_source$client),]
 edgelist_target<-edgelist_target[order(edgelist_target$client),]
 edgelist_pred<-edgelist_pred[order(edgelist_pred$client),]
-
 
 #Detect new edges between the target and the source data sets
 new_edges_ts <-edgelist_target[!duplicated(rbind(edgelist_source, edgelist_target))[-seq_len(nrow(edgelist_source))], ]
@@ -46,111 +50,98 @@ colnames(new_edges_test) <- c("client","merchant")
 
 
 #sample data
-sample_a<-edgelist_source #after data frame
-sample_b<-edgelist_target #before data frame
+sample_a<-edgelist_source[,1:2] #after data frame
+sample_b<-edgelist_target[,1:2] #before data frame
 sample_c<-edgelist_pred #predict data frame
 
 
 #set the number of eigenvalues to be caluclated
-s=300
+s=80
 
-g_a <- graph.data.frame(sample_a,directed = FALSE)
-V(g_a)$type <- V(g_a)$name %in% sample_a[,1]
-#is.bipartite(g_a) #verify graph is bipartite
-#get.edgelist(g, names=TRUE)# to verify this was done properly
-adj_a <- get.adjacency(g_a, sparse = TRUE,type=c("both"))
-#adj_a[is.na(adj_a)] <- 0
-#image(adj_a,zlim = c(0,1))
-#nrow(adj_a)
-#ncol(adj_a)
+#fill the adjacency matrix. 
+#clients rows
+#merchants columns
+adj_a <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+rownames(adj_a) <- c(as.character(unique(sample_a$client)))
+colnames(adj_a) <- c(as.character(unique(sample_a$merchant)))
+
+for (i in 1:nrow(sample_a))
+#  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 1
+  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 
+  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] +1
+
+image(adj_a)
+hist(as.numeric(adj_a))
+
+adj_b <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+rownames(adj_b) <- c(as.character(unique(sample_a$client)))
+colnames(adj_b) <- c(as.character(unique(sample_a$merchant)))
+
+for (i in 1:nrow(sample_b))
+#unweighted graph
+#  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 1
+#weighted graph 
+  i=1
+  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 
+  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] +1
+
+image(adj_b)
+hist(as.numeric(adj_b))
+
+adj_c <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+rownames(adj_c) <- c(as.character(unique(sample_a$client)))
+colnames(adj_c) <- c(as.character(unique(sample_a$merchant)))
+
+for (i in 1:nrow(sample_c))
+#unweighted graph
+#  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 1
+#weighted graph 
+  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 
+  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] +1
+
+image(adj_c)
+hist(as.numeric(adj_c))
 
 svd_a<-irlba(adj_a, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
              tol = 1e-06, V = NULL, matmul = NULL)
 svd_am <- Matrix(0, ncol = s,nrow = s)
 diag(svd_am) <- svd_a$d
-#t<-svd_a$u %*% svd_am %*% t(svd_a$v)
-#hist(as.numeric(t))
-#t <- Matrix(t,sparse = TRUE)
-#image(adj_a)
-#image(t, zlim = c(0,1))
+t<-svd_a$u %*% svd_am %*% t(svd_a$v)
+image(adj_a)
+image(t)
 
-#isSymmetric(as.matrix(adj))
-#calculate the eigenvalues and eigenvectors using ARPACK algorithm
-
-g_b <- graph.data.frame(sample_b,directed = FALSE)
-V(g_b)$type <- V(g_b)$name %in% sample_b[,1]
-#get.edgelist(g_b) #to verify this was done properly
-adj_b <- get.adjacency(g_b, sparse = TRUE,type=c("both"))
-#reorder matrix adj_b to match order of adj_a
-col.order <- dimnames(adj_a)[[1]]
-row.order <- dimnames(adj_a)[[2]]
-adj_b <- adj_b[row.order,col.order]
-#adj_b[is.na(adj_b)] <- 0
-#image(adj_b)
-
-#compute matrix of new edges - i.e. B
-#ne <- as.matrix(adj_b) - as.matrix(adj_a)
-ne <- adj_b - adj_a
-col.order <- dimnames(adj_a)[[1]]
-row.order <- dimnames(adj_a)[[2]]
-ne <- ne[row.order,col.order]
-#ne <- Matrix(ne,sparse = TRUE)
-#image(ne,xaxs = "i",yaxs = "i")
-#image(adj_a)
-#image(adj_b)
-#image(ne)
-#adj_b <- ne
-#adj_b <- ne
-#isSymmetric(as.matrix(adj))
-#calculate the eigenvalues and eigenvectors using ARPACK algorithm
 svd_b<-irlba(adj_b, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
              tol = 1e-06, V = NULL, matmul = NULL)
 svd_bm <- Matrix(0, ncol = s,nrow = s)
 diag(svd_bm) <- svd_b$d
-#t<-svd_b$u %*% svd_bm %*% t(svd_b$v)
-#hist(as.numeric(t))
-#image(adj_b)
-#image(t)
-
-#compute eigenvalues for the new edges matrix of B.
-svd_ne<-irlba(ne, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
-              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
-              tol = 1e-06, V = NULL, matmul = NULL)
-svd_nem <- Matrix(0, ncol = s,nrow = s)
-diag(svd_nem) <- svd_ne$d
-#t<-svd_ne$u %*% svd_nem %*% t(svd_ne$v)
-#hist(as.numeric(t))
-#image(adj_b)
-#image(ne)
-#image(t)
+t<-svd_b$u %*% svd_bm %*% t(svd_b$v)
+image(adj_b)
+image(t)
 
 #spectral evolution test
-plot(x=c(ecount(g_a),ecount(g_b)),y=c(svd_a$d[1],svd_b$d[1]),xlab = 'Eigenvalues', ylab = 'Edge count')
+plot(x=c(nrow(sample_a),nrow(sample_b)),y=c(svd_a$d[1],svd_b$d[1]),xlab = 'Edge count ', ylab = 'Singular values')
 
-#spectral diagonality test
-sd <- t(svd_a$v) %*% adj_b %*% svd_a$u
-dim(sd)
-#image(sd)
+ne <- adj_b - adj_a
+image(adj_a)
+image(adj_b)
+image(ne)
 
-#Check the development of the prediction eigenvalues in comparison to target
-g_c <- graph.data.frame(sample_c,directed = FALSE)
-V(g_c)$type <- V(g_c)$name %in% sample_c[,1]
-#get.edgelist(g_c) #to verify this was done properly
-adj_c <- get.adjacency(g_c, sparse = TRUE,type = "both")
-col.order <- dimnames(adj_a)[[1]]
-row.order <- dimnames(adj_a)[[2]]
-adj_c <- adj_c[row.order,col.order]
-svd_c<-irlba(adj_c, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
+svd_ne<-irlba(ne, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
              tol = 1e-06, V = NULL, matmul = NULL)
-svd_cm <- Matrix(0, ncol = s,nrow = s)
-diag(svd_cm) <- svd_c$d
-#t<-svd_c$u %*% svd_cm %*% t(svd_c$v)
-#hist(as.numeric(t))
-#image(adj_c)
-#image(t)
+svd_nem <- Matrix(0, ncol = s,nrow = s)
+diag(svd_nem) <- svd_ne$d
+t<-svd_ne$u %*% svd_nem %*% t(svd_ne$v)
+image(ne)
+image(t)
+
+
+#spectral diagonality test
+sd <- t(svd_a$u) %*% ne %*% svd_a$v
+dim(sd)
+image(sd)
 
 #normalise the spectra
 nlamda <- svd_a$d * abs(svd_a$d[1])/abs(svd_b$d[1])
@@ -160,9 +151,9 @@ nlamda <- svd_a$d * abs(svd_a$d[1])/abs(svd_b$d[1])
 
 #compute multiplication of eigenvalues of A and matrix of new edges of B
 #ne <- adj_b
-b_svd <- t(svd_a$v) %*% ne %*% svd_a$u
+b_svd <- t(svd_a$u) %*% ne %*% svd_a$v
 #hist(as.numeric(b_svd))
-#image(b_svd)
+image(b_svd)
 
 df = as.data.frame(as.numeric(diag(b_svd))) #the independent variable
 df$flamda = nlamda #the dependent function
@@ -173,11 +164,12 @@ plot(df$source,df$target)
 #fit <-lm(formula = df$target ~ I(df$source) + I(df$source^3)+I(df$source^5)+I(df$source^7)+I(df$source^9))
 fit1 <-lm(formula = target ~ I(source) + I(source^3) + I(source^5) + I(source^7) + I(source^9), data = df)
 summary(fit1)
-sum(resid(fit)^2)
+sum(resid(fit1)^2)
 new = data.frame(source = df$source)
 x=df$source
 y=predict(fit1,new)
 points(x,y,col = "green")
+
 
 fit2 <- lm(formula = df$target ~ sinh(df$source))
 fit2 <-lm(formula = target ~ sinh(I(source)),data = df)
@@ -196,20 +188,6 @@ new = data.frame(source = df$source)
 x=df$source
 y=predict(fit3,new)
 lines(x,y,col = "blue")
-
-
-#Sanity check - reproduce the target matrix
-#flamda = Matrix(0,  ncol = ncol(b_svd),nrow = ncol(b_svd),sparse=TRUE)
-#diag(flamda) = coef(fit)[1] + coef(fit)[2]*baev_a$values + (baev_a$values^3)*coef(fit)[3] + coef(fit)[4]*(baev_a$values^5) + coef(fit)[5]*(baev_a$values^7) + coef(fit)[6]*(baev_a$values^9)
-#image(mb)
-#image(flamda)
-#mp <- Matrix(baev_a$vectors[,1:r] %*% flamda %*% t(baev_a$vectors[,1:r]),sparse=TRUE)
-#hist(as.numeric(mp))
-#substitute values in a matrix
-#image(adj_a)
-#image(adj_b)
-#image(ne)
-#image(mp)
 
 netest <- adj_c - adj_b
 image(netest) #new edges
@@ -232,8 +210,8 @@ z<-match(max(h$counts),h$counts) #zero
 l<-length(h$breaks)
 round(l/2)
 #mp[mp<h$breaks[z-l]] <- 1
-mp[mp<=h$breaks[l-16]] <- 0
-mp[mp>h$breaks[l-16]] <- 1
+mp[mp<=h$breaks[l-5]] <- 0
+mp[mp>h$breaks[l-5]] <- 1
 hist(as.numeric(mp))
 image(mp)
 image(netest)
@@ -272,7 +250,6 @@ min(as.numeric(mp))
 mp <- as.matrix(mp,row.names = FALSE)
 
 
-yo <- which(mp>0.8,arr.ind = TRUE,useNames=FALSE)
 
 pred <- as.matrix(mp[yo[,1],yo[,2]])
 hist(as.numeric(pred))
