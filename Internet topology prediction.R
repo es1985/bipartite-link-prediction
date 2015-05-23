@@ -7,200 +7,259 @@ require(SnowballC)
 require(lsa)
 require(scales)
 library(reshape2)
+require(irlba)
 options(java.parameters = "-Xmx4g")
 
 rm(list=ls(all=TRUE))
 
-edgelist_source <- read.csv('/media/evgeny/6A3E423911320671/Documents/Masters thesis/as-caida20070709 (copy).txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-edgelist_target <- read.csv('/media/evgeny/6A3E423911320671/Documents/Masters thesis/as-caida20071029 (copy).txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-edgelist_pred <- read.csv('/media/evgeny/6A3E423911320671/Documents/Masters thesis/as-caida20071105 (copy).txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+#edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_after.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+#edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\ltest_pred.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('client','merchant'))
+
+#edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_2m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+#edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_6m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+#edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_6m.sorted.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+
+edgelist_source <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_12m.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+edgelist_target <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_14m.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+edgelist_pred <- read.csv('C:\\Users\\esavin\\Documents\\Link prediction\\pp_oap_sing_tv_t.graph_edges_16m.txt',sep = "|",header = TRUE, row.names = NULL, col.names = c('client','merchant','month'))
+
+#Detect new edges between the target and the source data sets
+new_edges_ts <-edgelist_target[!duplicated(rbind(edgelist_source, edgelist_target))[-seq_len(nrow(edgelist_source))], ]
+
+#Filter out clients active in the source dataset 
+#active_clients_source <-edgelist_source[edgelist_source$client %in% new_edges_ts$client,]
+
+#Detect new edges between the prediction and target
+new_edges_pt <-edgelist_pred[!duplicated(rbind(edgelist_target, edgelist_pred))[-seq_len(nrow(edgelist_target))], ]
+
+#Filter out clients active in the source dataset
+#active_clients_target <-edgelist_target[edgelist_target$client %in% new_edges_pt$client,]
+
+
+#sample data
+sample_a<-edgelist_source[,1:2] #after data frame
+sample_b<-edgelist_target[,1:2] #before data frame
+sample_c<-edgelist_pred[,1:2] #predict data frame
 
 outersect <- function (x,y)
 {
   sort(c(setdiff(x,y),setdiff(y,x)))
 }
 
-diff_as1<-outersect(edgelist_source$as1,edgelist_target$as1)
-diff_as2<-outersect(edgelist_source$as2,edgelist_target$as2)
+
+#detect abnormally active clients and filter them out
+a <- as.data.frame(table(sample_a$client),row.names = NULL)
+a<- a[order(a$Freq,decreasing = TRUE),]
+hist(as.numeric(a$Freq))
+
+for (i in 1:nrow(a))
+{
+  if (a$Freq[i] > 60 || a$Freq[i] < 4)
+  {
+    #print(a$Var1[i])
+    sample_a <- sample_a[sample_a$client != a$Var1[i],]
+    sample_b <- sample_b[sample_b$client != a$Var1[i],]
+    sample_c <- sample_c[sample_c$client != a$Var1[i],]  
+  }
+}  
+
+outersect(sample_b$client,sample_a$client)
+outersect(sample_b$merchant,sample_a$merchant)
+
+
+#detect abnormally active merchants and filter them out
+a <- as.data.frame(table(sample_a$merchant),row.names = NULL)
+a<- a[order(a$Freq,decreasing = TRUE),]
+hist(as.numeric(a$Freq))
+
+for (i in 1:nrow(a))
+  if (a$Freq[i] > (mean(a$Freq) + sd(a$Freq)) || (a$Freq[i] < (mean(a$Freq) - sd(a$Freq))))
+  {
+    #print(a$Var1[i])
+    sample_a <- sample_a[sample_a$merchant != a$Var1[i],]
+    sample_b <- sample_b[sample_b$merchant != a$Var1[i],]
+    sample_c <- sample_c[sample_b$merchant != a$Var1[i],]  
+  }
+
+#Equate the number of nodes
+#Run a number of times until diff1 and diff2 are empy
+diff1 <- outersect(sample_b$client,sample_a$client)
+diff2 <- outersect(sample_b$merchant,sample_a$merchant)
 
 #Remove rows where elements appear in just 1 data set and not both, i.e. make sure both datasets
 #have the same number of nodes
-for (i in 1:length(diff_as1))
+for (i in 1:length(diff1))
 {
-  edgelist_source <- edgelist_source[edgelist_source$as1 != diff_as1[i],]
-  edgelist_target <- edgelist_target[edgelist_target$as1 != diff_as1[i],]
-}
-    
-for (i in 1:length(diff_as2))
-{
-  edgelist_source <- edgelist_source[edgelist_source$as2 != diff_as2[i],]
-  edgelist_target <- edgelist_target[edgelist_target$as2 != diff_as2[i],]
+  sample_a <- sample_a[sample_a$client != diff1[i],]
+  sample_b <- sample_b[sample_b$client != diff1[i],]
 }
 
+for (i in 1:length(diff2))
+{
+  sample_a <- sample_a[sample_a$merchant != diff2[i],]
+  sample_b <- sample_b[sample_b$merchant != diff2[i],]
+}
 
-diff_as1<-outersect(edgelist_source$as1,edgelist_pred$as1)
-diff_as2<-outersect(edgelist_source$as2,edgelist_pred$as2)
+diff1 <- outersect(sample_c$client,sample_a$client)
+diff2 <- outersect(sample_c$merchant,sample_a$merchant)
 
 #Remove rows where elements appear in just 1 data set and not both, i.e. make sure both datasets
 #have the same number of nodes
-for (i in 1:length(diff_as1))
+for (i in 1:length(diff1))
 {
-  edgelist_source <- edgelist_source[edgelist_source$as1 != diff_as1[i],]
-  edgelist_pred <- edgelist_pred[edgelist_pred$as1 != diff_as1[i],]
+  sample_a <- sample_a[sample_a$client != diff1[i],]
+  sample_c <- sample_c[sample_c$client != diff1[i],]
 }
 
-for (i in 1:length(diff_as2))
+for (i in 1:length(diff2))
 {
-  edgelist_source <- edgelist_source[edgelist_source$as2 != diff_as2[i],]
-  edgelist_pred <- edgelist_pred[edgelist_pred$as2 != diff_as2[i],]
+  sample_a <- sample_a[sample_a$merchant != diff2[i],]
+  sample_c <- sample_c[sample_c$merchant != diff2[i],]
 }
 
-
-#Detect new edges between the target and the source data sets
-new_edges_ts <-edgelist_target[!duplicated(rbind(edgelist_source, edgelist_target))[-seq_len(nrow(edgelist_source))], ]
-
-#Filter out as1s active in the source dataset 
-#active_as1s_source <-edgelist_source[edgelist_source$as1 %in% new_edges_ts$as1,]
-
-#Detect new edges between the prediction and target
-new_edges_pt <-edgelist_pred[!duplicated(rbind(edgelist_target, edgelist_pred))[-seq_len(nrow(edgelist_target))], ]
-
-#Filter out as1s active in the source dataset
-#active_as1s_target <-edgelist_target[edgelist_target$as1 %in% new_edges_pt$as1,]
-
-sample_a <- edgelist_source
-sample_b <- edgelist_target
-sample_c <- edgelist_pred
 
 
 #set the number of eigenvalues to be caluclated
+s=80
 
-r=100
+#fill the adjacency matrix. 
+#clients rows
+#merchants columns
+adj_a <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+rownames(adj_a) <- c(as.character(unique(sample_a$client)))
+colnames(adj_a) <- c(as.character(unique(sample_a$merchant)))
 
-g_a <- graph.data.frame(sample_a,directed = FALSE)
-is.connected(g_a)
-adj_a <- get.adjacency(g_a, sparse = TRUE,type=c("both"))
-image(adj_a)
+for (i in 1:nrow(sample_a))
+#  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 1
+  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 
+  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] +1
 
-#calculate the eigenvalues and eigenvectors using ARPACK algorithm
-
-f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_a %*% x) }
-baev_a <- arpack(f2, sym=TRUE, options=list(n=vcount(g_a), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_a)*12))
-
-
-g_b <- graph.data.frame(sample_b,directed = FALSE)
-is.connected(g_b)
-adj_b <- get.adjacency(g_b, sparse = TRUE)
-col.order <- dimnames(adj_a)[[1]]
-row.order <- dimnames(adj_a)[[2]]
-adj_b <- adj_b[row.order,col.order]
-image(adj_b)
-
-f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_b %*% x) }
-baev_b <- arpack(f2, sym=TRUE, options=list(n=vcount(g_b), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_b)*12))
-
-
-#sanity check - reconstruct the original matrix A
-#lamda = Matrix(0,  ncol = r,nrow = r)
-#diag(lamda) = baev_a$values
-#t<- baev_a$vectors %*% lamda %*% t(baev_a$vectors)
-#hist(as.numeric(t))
-#t<- rescale(t,to = c(0,1))
-#hist(as.numeric(t))
-#substitute values in a matrix
-#t[t<0.3] <- 0
-#t[t>0.3] <- 1
-#t<-Matrix(t,sparse = TRUE)
 #image(adj_a)
-#image(t)
+hist(as.numeric(adj_a))
+
+adj_b <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+rownames(adj_b) <- c(as.character(unique(sample_a$client)))
+colnames(adj_b) <- c(as.character(unique(sample_a$merchant)))
+
+for (i in 1:nrow(sample_b))
+{
+  #unweighted graph
+#  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 1
+#weighted graph 
+  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 
+  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] +1
+}
+
+#image(adj_b)
+hist(as.numeric(adj_b))
+
+adj_c <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+rownames(adj_c) <- c(as.character(unique(sample_a$client)))
+colnames(adj_c) <- c(as.character(unique(sample_a$merchant)))
+
+for (i in 1:nrow(sample_c))
+#unweighted graph
+#  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 1
+#weighted graph 
+  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 
+  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] +1
+
+#image(adj_c)
+hist(as.numeric(adj_c))
 
 
-#Check the development of the prediction eigenvalues in comparison to target
-g_c <- graph.data.frame(sample_c,directed = FALSE)
-V(g_c)$type <- V(g_c)$name %in% sample_c[,1]
-#get.edgelist(g_c) #to verify this was done properly
-adj_c <- get.adjacency(g_c, sparse = TRUE)
-col.order <- dimnames(adj_a)[[1]]
-row.order <- dimnames(adj_a)[[2]]
-adj_c <- adj_c[row.order,col.order]
-f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_c %*% x) }
-baev_c <- arpack(f2, sym=TRUE, options=list(n=vcount(g_c), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_c)*15))
-mc = Matrix(0,  ncol = r,nrow = r)
-diag(mc) = baev_c$values
+#matrix normalisation
+normalise <- function(m)
+{
+  D1 = Matrix(data = 0,nrow=nrow(m),ncol=nrow(m))
+  #The function normalises the matrix as described on pages 15-16 
+  for (i in 1:nrow(m))
+  { 
+    print(paste('D1 calculation : row', i))
+    D1[i,i] = sum(m[i,])
+  }
+  D2 = Matrix(data = 0,nrow = ncol(m),ncol=ncol(m))  
+  for (i in 1:ncol(m))
+  {  
+    print(paste('D2 calcilation : column',i))
+    D2[i,i] = sum(m[,i])
+  }
+  diag(D1) <- 1/sqrt(diag(D1))
+  diag(D2) <- 1/sqrt(diag(D2))
+  M=D1%*%m%*%D2
+  return (M)
+}
+
+adj_an <- normalise(adj_a)
+hist(as.numeric(adj_an))
+adj_bn <- normalise(adj_b)
+hist(as.numeric(adj_bn))
+adj_cn <- normalise(adj_c)
+hist(as.numeric(adj_cn))
 
 
-#compute matrix of new edges - i.e. B
+svd_a<-irlba(adj_a, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
+             sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
+             tol = 1e-06, V = NULL, matmul = NULL)
+#svd_am <- Matrix(0, ncol = s,nrow = s)
+#diag(svd_am) <- svd_a$d
+#t<-svd_a$u %*% svd_am %*% t(svd_a$v)
+#image(adj_a)
+##image(t)
+
+svd_b<-irlba(adj_b, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
+             sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
+             tol = 1e-06, V = NULL, matmul = NULL)
+#svd_bm <- Matrix(0, ncol = s,nrow = s)
+#diag(svd_bm) <- svd_b$d
+#t<-svd_b$u %*% svd_bm %*% t(svd_b$v)
+#image(adj_b)
+##image(t)
+
+#spectral evolution test
+plot(x=c(nrow(sample_a),nrow(sample_b)),y=c(svd_a$d[1],svd_b$d[1]),xlab = 'Edge count ', ylab = 'Singular values')
+
 ne <- adj_b - adj_a
-col.order <- dimnames(adj_a)[[1]]
-row.order <- dimnames(adj_a)[[2]]
-ne <- ne[row.order,col.order]
-
 #image(adj_a)
 #image(adj_b)
 #image(ne)
 
-
-#normalise the spectra
-nlamda <- baev_a$values * abs(baev_a$values[1])/abs(baev_b$values[1])
-
-#without normalisation
-#nlamda <- baev_a$values
-
-
-#spectral evolution test
-x<-NULL
-y<-NULL
-for (i in 1 : 6)
-{
-  x=append(x,ecount(g_a))
-  x=append(x,ecount(g_b))
-  x=append(x,ecount(g_c))
-  y=append(y,baev_a$values[i])
-  y=append(y,baev_b$values[i])
-  y=append(y,baev_c$values[i])
-}
-
-plot(x,y,xlab = 'Edge count', ylab = 'Eigenvalues')
-
-#compute eigenvector stability
-sim_train <- Matrix(nrow = r,ncol = r)
-sim_test <- Matrix(nrow = r,ncol = r)
-for (i in 1:r)
-{
-  for (j in 1:r)
-  {
-    sim_train[i,j] <- abs(cosine(baev_b$vectors[,i],baev_a$vectors[,j]))
-    sim_test[i,j] <- abs(cosine(baev_c$vectors[,i],baev_b$vectors[,j]))    
-  }
-}
-
-image(sim_train,axes=TRUE,main = "Eigenvector stability")
-image(sim_test,main = "Eigenvector stability")
+svd_ne<-irlba(ne, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
+             sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
+             tol = 1e-06, V = NULL, matmul = NULL)
+#svd_nem <- Matrix(0, ncol = s,nrow = s)
+#diag(svd_nem) <- svd_ne$d
+#t<-svd_ne$u %*% svd_nem %*% t(svd_ne$v)
+##image(ne)
+##image(t)
 
 
 #spectral diagonality test
-sd <- t(baev_a$vectors) %*% ne %*% baev_a$vectors
+sd <- t(svd_a$u) %*% ne %*% svd_a$v
+dim(sd)
 image(sd)
 
+#normalise the spectra
+nlamda <- svd_a$d * abs(svd_a$d[1])/abs(svd_b$d[1])
 
-#compute multiplication of eigenvalues of A and matrix B
-b_eigen <- t(baev_a$vectors) %*% ne %*% baev_a$vectors
-#hist(as.numeric(b_eigen))
-image(b_eigen)
+#without normalisation
+#nlamda <- svd_a$d
 
+#compute multiplication of eigenvalues of A and matrix of new edges of B
+#ne <- adj_b
+b_svd <- t(svd_a$u) %*% ne %*% svd_a$v
+#hist(as.numeric(b_svd))
+image(b_svd)
 
-#df = as.data.frame(nlamda)
-df = as.data.frame(as.numeric(diag(b_eigen))) #the independent variable
-df$flamda = baev_a$values #the dependent function
+df = as.data.frame(as.numeric(diag(b_svd))) #the independent variable
+df$flamda = nlamda #the dependent function
 colnames(df) = c("source","target")
 plot(df$source,df$target)
 
 
-#fit1 <-lm(formula = df$target ~ I(df$source) + I(df$source^3)+I(df$source^5)+I(df$source^7)+I(df$source^9))
-fit1 <-lm(formula = target ~ I(source) + I(source^2) + I(source^3) + I(source^4) + I(source^5), data = df)
+#fit <-lm(formula = df$target ~ I(df$source) + I(df$source^3)+I(df$source^5)+I(df$source^7)+I(df$source^9))
+fit1 <-lm(formula = target ~ I(source) + I(source^3) + I(source^5) + I(source^7) + I(source^9), data = df)
 summary(fit1)
 sum(resid(fit1)^2)
 new = data.frame(source = df$source)
@@ -208,8 +267,8 @@ x=df$source
 y=predict(fit1,new)
 points(x,y,col = "green")
 
-coef(fit1)
 
+fit2 <- lm(formula = df$target ~ sinh(df$source))
 fit2 <-lm(formula = target ~ sinh(I(source)),data = df)
 summary(fit2)
 sum(resid(fit2)^2)
@@ -225,249 +284,70 @@ sum(resid(fit3)^2)
 new = data.frame(source = df$source)
 x=df$source
 y=predict(fit3,new)
-lines(x,y,col = "blue")
+points(x,y,col = "blue")
 
 
 netest <- adj_c - adj_b
-image(netest) #new edges
-
+#image(netest) #new edges
 
 #Now construct a prediction based on the best fit
-flamda = Matrix(0,  ncol = r,nrow = r, sparse = TRUE)
-new.dfb <- data.frame(source = as.numeric(baev_b$values))
+flamda = Matrix(0,  ncol = s,nrow = s)
+new.dfb <- data.frame(source = as.numeric(svd_b$d))
 newdata = predict(fit1,new.dfb)
 #newdata = coef(fit)[1] + coef(fit)[2]*baev_b$values + (baev_b$values^3)*coef(fit)[3] + coef(fit)[4]*(baev_b$values^5) + coef(fit)[5]*(baev_b$values^7) + coef(fit)[6]*(baev_b$values^9)
-hist(newdata)
-hist(as.numeric(mc))
+#hist(newdata)
 diag(flamda) = newdata
-image(mc)
-image(flamda)
-mp <- Matrix(data=0,sparse = TRUE)
-bv <- Matrix(baev_b$vectors,sparse = TRUE)
-mp <- bv %*% flamda %*% t(bv)
-#mp <- baev_b$vectors %*% flamda %*% t(baev_b$vectors)
-mp<-abs(mp)
-
-require(bigmemory)
-t<-filebacked.big.matrix(nrow=nrow(adj_a),ncol=ncol(adj_a),backingfile="mp.bin",dimnames=dimnames(adj_a))
-t<-bv %*% flamda %*% t(bv)
-
-require('slam')
-m1 <- matrix(0, nrow = 1000, ncol = 1000)
-m2 <- simple_triplet_zero_matrix(nrow = 1000, ncol = 1000)
-object.size(m1)
-# 8000200 bytes
-object.size(m2)
-# 1032 bytes
-
-object.size(bv)
-bv2 <- simple_triplet_zero_matrix(baev_b$vectors,nrow=nrow(baev_b$vectors),ncol=ncol(baev_b$vectors))
-bv2 < 
-
-
+##image(svd_cm)
+##image(flamda)
+mp <- svd_b$u %*% flamda %*% t(svd_b$v)
 dimnames(mp) <- dimnames(adj_a)
-h<-hist(as.numeric(mp))
 #find concetration of values and set them to be 0
-z<-match(max(h$counts),h$counts) #zero 
-l<-length(h$counts)
+mp<-abs(mp)
+h<-hist(as.numeric(mp))
+#z<-match(max(h$counts),h$counts) #zero 
 #h$breaks[z]
-#mp[mp<=h$breaks[1]] <- 0
-mp[mp<=h$breaks[l-4]] <- 0
-mp[mp>h$breaks[l-4]] <- 1
+l<-length(h$breaks)
+#mp[mp<h$breaks[z-l]] <- 1
+mp[mp<=h$breaks[l-round(l/1.2)]] <- 0
+mp[mp>h$breaks[l-round(l/1.2)]] <- 1
 hist(as.numeric(mp))
-image(mp)
-netest <- adj_c - adj_b
-image(netest)
+#image(mp)
+#image(netest)
 
-m<-netest+2*mp
+ind <- which(mp == 1)
+for (i in 1:length(ind))
+{
+  k <- arrayInd(ind[i],dim(mp))
+  print(mapply(`[[`, dimnames(mp), k))
+}
+
+#substitute any multiple edges with just 1 edge
+netest[netest > 1] <- 1
+mx<-max(as.numeric(netest))
+
+m<-netest+1.5*mp
 hist(as.numeric(m))
 #m<-2*as.matrix(mp)+as.matrix(netest)
-#image(m) #new edges
-tp <- which(m == 3, arr.in = TRUE, useNames = TRUE)
-fp <- which(m == 2, arr.in = TRUE, useNames = TRUE)
-fn <- which(m == 1, arr.in = TRUE, useNames = TRUE)
+##image(m) #new edges
+
+tp <- which(m == mx+1.5, arr.in = TRUE, useNames = TRUE)
+fp <- which(m == 1.5, arr.in = TRUE, useNames = TRUE)
+fn <- which(m == mx, arr.in = TRUE, useNames = TRUE)
 tn <- which(m == 0, arr.in = TRUE, useNames = TRUE)
 
 confusion_matrix <- matrix(c(nrow(tp),nrow(fp),nrow(fn),nrow(tn)),nrow = 2,ncol = 2,byrow = TRUE)
 confusion_matrix
 
+precision = nrow(tp)/(nrow(tp)+nrow(fp)) #positive predictive value
+npv = nrow(tn)/(nrow(fn)+nrow(tn)) #negative predictive value
+recall = nrow(tp)/(nrow(fn)+nrow(tp)) #sensitivity
+specificity = nrow(tn)/(nrow(fp)+nrow(tn))
 
-##assemble back into the data frame
-arrayInd(t,useNames=TRUE)
+precision_matrix <- matrix(c(precision,npv,recall,specificity),nrow = 2,ncol = 2,byrow = TRUE)
+precision_matrix
 
-t
-m[1790,5]
-
-pred <- melt(m)
-pred <- pred[,1:2]
-
-pred <- pred[pred$value == 1,]
-pred <- pred[order(pred[1,])]
-preddf <- NULL
-preddf <-as.data.frame(pred$Var2)
-preddf$as2 <- pred$Var1
-colnames(preddf) <- c("as1","as2")
-
-dimnames(m==2)
-
-m>0
-
-m<-Matrix(m,sparse = TRUE)
-image(m)
-
-pred = as.matrix(as.numeric(m))
-
-
-precision <- subset(m,subset = m[]==0)
-
-require(pROC)
-roc
-
-pred <- as.matrix(m)
-pred <- melt(pred)
-pred <- pred[pred$value == 1,]
-pred <- pred[,1:2]
-pred <- pred[order(pred[1,])]
-preddf <- NULL
-preddf <-as.data.frame(pred$Var2)
-preddf$as2 <- pred$Var1
-colnames(preddf) <- c("as1","as2")
-
-match <-new_edges_test[!duplicated(rbind(new_edges_test, preddf))[-seq_len(nrow(new_edges_test))], ]
+pred <- melt(as.matrix(mp))
+p1 <- pred[pred$value == 1,]
 
 
 
-
-
-
-
-
-
-###############################################################################################
-
-
-#function for selecting a subsample of transacting customers and as2s from 3 different datasets
-sample_a <- edgelist_source
-sample_a <- NULL
-sample_b <- edgelist_source
-sample_b <- NULL
-sample_c <- edgelist_source
-sample_c <- NULL
-
-x <- as.integer(runif(10,1,nrow(edgelist_source))) 
-#x <- active_as1s_source[1:5,]
-#d<-edgelist_source[1:5,]$as1
-d<-edgelist_source[x,]$as1
-for (i in 1 : length(d))
-{
-  #i=1
-  sc_source<-edgelist_source[edgelist_source$as1==d[i],] #set of as1s source
-  sc_target<-edgelist_target[edgelist_target$as1==d[i],] #set of as1s target
-  sc_pred<-edgelist_pred[edgelist_pred$as1==d[i],] #set of as1s prediction
-  
-  cst<-setdiff(sc_target$as2,sc_source$as2) #check that there were no new as2s between source and target 
-  ctp<-setdiff(sc_pred$as2,sc_source$as2) #check that there were no new as2s added between target and prediction 
-  
-  for (j in 1 : length(cst))
-  {
-    sc_target <- sc_target[sc_target$as2 != cst[j],]
-  }
-  
-  for (l in 1 : length(ctp))
-  {
-    sc_pred <- sc_pred[sc_pred$as2 != ctp[l],]
-  }
-  
-  #add all source rows to sample_a
-  sample_a <- rbind(sample_a,sc_source)
-  
-  #add all source rows to sample_b also add new rows to sample_b
-  sample_b <- rbind(sample_b,sc_target)
-  
-  #add all source rows, target rows and prediction rows to sample_c
-  sample_c <- rbind(sample_c,sc_pred)
-}
-
-
-
-t<-sample_a[!duplicated(sample_a),] #remove duplicated edges
-
-sample_b <- rbind(sample_b,sample_a)
-t1<-sample_b[!duplicated(sample_b),] #remove duplicated edges
-
-sample_c <- rbind(sample_c,sample_b)
-t2 <- sample_c[!duplicated(sample_c),] #remove duplicated edges
-
-
-#verify the as2 sets are identical
-setdiff(sample_b$as2,sample_a$as2)
-setdiff(sample_c$as2,sample_b$as2)
-
-setdiff(sample_a$as2,sample_b$as2)
-setdiff(sample_b$as2,sample_c$as2)
-
-#sample_a<-sc_source #after data frame
-#sample_b<-sc_target #before data frame
-#sample_c<-sc_pred #predict data frame
-
-
-fit1 <- nls(formula = df$target ~ sinh(alpha*df$source),start=c(alpha=0.01),data = df)
-summary(fit1)
-sum(resid(fit1)^2)
-confint(fit1)
-new = data.frame(xdata = seq(min(df$source),max(df$source),len=length(df$source)))
-lines(df$source,predict(fit1,newdata=new),col = "red")
-
-
-fit2 <- nls(formula = df$target ~ alpha*(I(df$source) + I(df$source^3)+I(df$source^5)+I(df$source^7)+I(df$source^9)), start=c(alpha=0.01),data = df)
-summary(fit2)
-sum(resid(fit2)^2)
-confint(fit2)
-new = data.frame(xdata = seq(min(df$source),max(df$source),len=length(df$source)))
-#lines(x=new$xdata,y=predict(fit2,newdata=new))
-lines(df$source,y=predict(fit2,newdata=new),col = "green")
-
-
-fit3 <- nls(formula = df$target ~ alpha*df$source/(1-(alpha*df$source)^2), start=c(alpha=0.1),data = df)
-summary(fit3)
-sum(resid(fit3)^2)
-confint(fit3)
-new = data.frame(xdata = seq(min(df$source),max(df$source),len=length(df$source)))
-lines(df$source,predict(fit3,newdata=new),col="blue")
-
-#alpha <- 8.714e-11
-#df$source <- alpha*df$source
-#ggplot(data=df,aes(source,target))+geom_point()+
-#  stat_smooth(method = "lm", formula = df$target ~ (I(df$source) + I(df$source^3)+I(df$source^5)+I(df$source^7)+I(df$source^9)),col = 'blue')+
-#  stat_smooth(method = "lm", formula = df$target ~ df$source/(1-df$source^2),col = 'red')+
-#  stat_smooth(method = "lm", formula = df$target ~ sinh(df$source),col='green')
-
-#singular value decomposition
-require(irlba)
-s=10
-svd<-irlba(adj_a, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
-           sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
-           tol = 1e-06, V = NULL, matmul = NULL)
-svd_m <- Matrix(0, ncol = s,nrow = s)
-diag(svd_m) <- svd$d
-t<-svd$u %*% svd_m 
-t<-t %*% t(svd$v)
-image(adj_a)
-t <- rescale(t,to = c(0,1))
-hist(as.numeric(t))
-t[t<0.4] <- 0
-t[t>0.4] <- 1
-t <- Matrix(t,sparse = TRUE)
-image(t)
-
-
-#eigenvector evolution
-#calculate eigenvector similarity by computing the cosine similarity
-sim=cosine(baev_b$vectors[,1],baev_a$vectors[,1])
-sim=cosine(baev_b$vectors[,6],baev_a$vectors[,6])
-
-b_svd <- t(svd$u) %*% adj_b 
-b_svd<- b_svd %*% svd$v
-hist(as.numeric(b_svd))
-image(b_svd)
-#b_svd <- rescale(b_svd,to = c(0,1))
