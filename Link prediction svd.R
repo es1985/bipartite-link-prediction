@@ -76,58 +76,23 @@ colnames(sample_c) <- c("merchant","client")
 #merchants columns
 g_a <- graph.data.frame(sample_a,directed = FALSE)
 
-adj_a_jacc <- Matrix(similarity.jaccard(g_a),sparse=TRUE)
+adj_a <- get.adjacency(g_a, sparse = TRUE,type=c("upper"))
 
-adj_a <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
-rownames(adj_a) <- c(as.character(unique(sample_a$client)))
-colnames(adj_a) <- c(as.character(unique(sample_a$merchant)))
+g_b <- graph.data.frame(sample_b,directed = FALSE)
 
-for (i in 1:nrow(sample_a))
-#  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 1
-  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 
-  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] +1
-
-#image(adj_a)
-#hist(as.numeric(adj_a))
-
-adj_b <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
-rownames(adj_b) <- c(as.character(unique(sample_a$client)))
-colnames(adj_b) <- c(as.character(unique(sample_a$merchant)))
-
-for (i in 1:nrow(sample_b))
-{
-  #unweighted graph
-#  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 1
-#weighted graph 
-  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 
-  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] +1
-}
+adj_b <- get.adjacency(g_b, sparse = TRUE,type=c("upper"))
 
 col.order <- dimnames(adj_a)[[1]]
 row.order <- dimnames(adj_a)[[2]]
 adj_b <- adj_b[row.order,col.order]
 
+g_c <- graph.data.frame(sample_c,directed = FALSE)
 
-#image(adj_b)
-#hist(as.numeric(adj_b))
-
-adj_c <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
-rownames(adj_c) <- c(as.character(unique(sample_a$client)))
-colnames(adj_c) <- c(as.character(unique(sample_a$merchant)))
-
-for (i in 1:nrow(sample_c))
-#unweighted graph
-#  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 1
-#weighted graph 
-  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 
-  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] +1
-
+adj_c <- get.adjacency(g_c, sparse = TRUE,type=c("upper"))
 
 col.order <- dimnames(adj_a)[[1]]
 row.order <- dimnames(adj_a)[[2]]
 adj_c <- adj_c[row.order,col.order]
-#image(adj_c)
-#hist(as.numeric(adj_c))
 
 
 
@@ -203,11 +168,8 @@ x=df$source
 y=predict(a_poly_odd,new)
 points(x,y,col = "green")
 
-
-#a_sinh <- lm(formula = target ~ sinh(source),data=df)
 #Still not sure which regression method to use
 
-alpha = 0.1
 a_sinh <- nls(formula = target ~ I(alpha*source)+I(((alpha*source)^3)/6)+I(((alpha*source)^5)/120),start=c(alpha=0.01),data=df)
 summary(a_sinh)
 sum(resid(a_sinh)^2)
@@ -217,9 +179,8 @@ x=df$source
 y=predict(a_sinh,new)
 points(x,y,col = "red")
 
-a_neu_o <- lm(formula = target ~ I(source)/(1-I(source^2)), data = df)
-alpha = 0.1
-a_neu_o <- lm(target ~ I(alpha*source) + I((alpha^source)^3) + I((alpha*source)^5),data = df)
+
+a_neu_o <- nls(target ~ I(alpha*source) + I((alpha^source)^3) + I((alpha*source)^5),start=c(alpha=0.01),data = df)
 summary(a_neu_o)
 sum(resid(a_neu_o)^2)
 new = data.frame(source = df$source)
@@ -227,29 +188,27 @@ x=df$source
 y=predict(a_neu_o,new)
 points(x,y,col = "blue")
 
-a_neu_o
-
 
 #Now construct a prediction based on the best fit
 flamda_a_poly_odd = matrix(0,  ncol = s,nrow = s)
 new.dfb <- data.frame(source = as.numeric(svd_b$d))
 diag(flamda_a_poly_odd) = predict(a_poly_odd,new.dfb)
 mp_a_poly_odd <- svd_b$u %*% flamda_a_poly_odd %*% t(svd_b$v)
-dimnames(mp) <- dimnames(adj_a)
+dimnames(mp_a_poly_odd) <- dimnames(adj_a)
 mp_a_poly_odd[1:10,1:10]
 
 flamda_a_sinh = matrix(0,  ncol = s,nrow = s)
 new.dfb <- data.frame(source = as.numeric(svd_b$d))
 diag(flamda_a_sinh) = predict(a_sinh,new.dfb)
 mp_a_sinh <- svd_b$u %*% flamda_a_sinh %*% t(svd_b$v)
-dimnames(mp) <- dimnames(adj_a)
+dimnames(mp_a_sinh) <- dimnames(adj_a)
 mp_a_sinh[1:10,1:10]
 
 flamda_a_neu_o = matrix(0,  ncol = s,nrow = s)
 new.dfb <- data.frame(source = as.numeric(svd_b$d))
 diag(flamda_a_neu_o) = predict(a_neu_o,new.dfb)
 mp_a_neu_o <- svd_b$u %*% flamda_a_neu_o %*% t(svd_b$v)
-dimnames(mp) <- dimnames(adj_a)
+dimnames(mp_a_neu_o) <- dimnames(adj_a)
 mp_a_neu_o[1:10,1:10]
 
 netest <- adj_c - adj_b
@@ -315,6 +274,63 @@ cutoffs <- cutoffs[order(cutoffs$tpr, decreasing=TRUE),]
 head(cutoffs)
 head(subset(cutoffs, fpr < 0.50))
 
+#calculate jaccard similarity measure
+adj_b_jacc <- Matrix(similarity.jaccard(g_b),sparse=TRUE)
+
+pred_jacc <- prediction(as.vector(adj_b_jacc),as.vector(netest))
+perf_jacc <- performance(pred,"tpr","fpr")
+plot(perf_jacc)
+sensitivity_specificity_jacc <- performance(pred,"sens","spec")
+plot(sensitivity_specificity_jacc)
+precision_recall_jacc <- performance(pred, "prec", "rec")
+plot(precision_recall_jacc)
+auc_jacc <- performance(pred_jacc,"auc")
+auc_jacc
+
+#calculate adamic adar similarity measure
+adj_b_adar <- Matrix(similarity.invlogweighted(g_b),sparse=TRUE)
+
+pred_adar <- prediction(as.vector(adj_b_adar),as.vector(netest))
+perf_adar <- performance(pred,"tpr","fpr")
+plot(perf_adar)
+sensitivity_specificity_adar <- performance(pred,"sens","spec")
+plot(sensitivity_specificity_adar)
+precision_recall_adar <- performance(pred_adar, "prec", "rec")
+plot(precision_recall_adar)
+auc_adar <- performance(pred_adar,"auc")
+auc_adar
+
+
+degree <- function(m)
+  #The function accepts adjacency matrix and returns the degree matrix
+{
+  D <- Matrix(0,nrow = nrow(m),ncol = nrow(m))
+  for (i in 1:nrow(m))
+  { 
+    # print(paste('D calculation : row', i))
+    D[i,i] = sum(m[i,])
+  }
+  return (D)
+}
+
+#calculate preferential attachment scores
+adj_b_d <- degree(adj_b)
+
+adj_b_ppa<-as.matrix(as.vector(diag(adj_b_d))%*%t(as.vector(diag(adj_b_d))))
+
+h<- hist(adj_b_ppa)
+h$counts
+
+pred_ppa <- prediction(as.vector(adj_b_ppa),as.vector(netest))
+perf_ppa <- performance(pred_ppa,"tpr","fpr")
+plot(perf_ppa)
+sensitivity_specificity_ppa <- performance(pred,"sens","spec")
+plot(sensitivity_specificity_ppa)
+precision_recall_ppa <- performance(pred_ppa, "prec", "rec")
+plot(precision_recall_ppa)
+auc_ppa <- performance(pred_ppa,"auc")
+auc_ppa
+
 
 #matrix normalisation
 normalise <- function(m)
@@ -329,7 +345,7 @@ normalise <- function(m)
   D2 = Matrix(data = 0,nrow = ncol(m),ncol=ncol(m))  
   for (i in 1:ncol(m))
   {  
-    print(paste('D2 calcilation : column',i))
+    print(paste('D2 calculation : column',i))
     D2[i,i] = sum(m[,i])
   }
   diag(D1) <- 1/sqrt(diag(D1))
@@ -344,6 +360,10 @@ adj_bn <- normalise(adj_b)
 hist(as.numeric(adj_bn))
 adj_cn <- normalise(adj_c)
 hist(as.numeric(adj_cn))
+
+
+############################################################################
+
 
 
 #find concetration of values and set them to be 0
@@ -538,3 +558,40 @@ y=predict(a_neu_o,new)
 points(x,y,col = "blue")
 
 
+#adj_a <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+#rownames(adj_a) <- c(as.character(unique(sample_a$client)))
+#colnames(adj_a) <- c(as.character(unique(sample_a$merchant)))
+
+#for (i in 1:nrow(sample_a))
+#  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 1
+#  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] <- 
+#  adj_a[as.character(sample_a$client[i]),as.character(sample_a$merchant[i])] +1
+
+#image(adj_a)
+#hist(as.numeric(adj_a))
+
+#adj_b <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+#rownames(adj_b) <- c(as.character(unique(sample_a$client)))
+#colnames(adj_b) <- c(as.character(unique(sample_a$merchant)))
+
+#for (i in 1:nrow(sample_b))
+#{
+#unweighted graph
+#  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 1
+#weighted graph 
+#  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] <- 
+#  adj_b[as.character(sample_b$client[i]),as.character(sample_b$merchant[i])] +1
+#}
+
+#adj_c <- get.adjacency(g_c, sparse = TRUE,type=c("upper"))
+
+#adj_c <- Matrix(0,sparse = TRUE,nrow = length(unique(sample_a$client)), ncol = length(unique(sample_a$merchant)))
+#rownames(adj_c) <- c(as.character(unique(sample_a$client)))
+#colnames(adj_c) <- c(as.character(unique(sample_a$merchant)))
+
+#for (i in 1:nrow(sample_c))
+#unweighted graph
+#  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 1
+#weighted graph 
+#  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] <- 
+#  adj_c[as.character(sample_c$client[i]),as.character(sample_c$merchant[i])] +1
