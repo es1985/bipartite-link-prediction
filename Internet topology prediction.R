@@ -189,33 +189,64 @@ df$flamda = as.numeric(diag(b_eigen)) #the dependent function
 colnames(df) = c("source","target")
 plot(x=df$source,y=df$target)
 
-#fit1 <-lm(formula = df$target ~ I(df$source) + I(df$source^3)+I(df$source^5)+I(df$source^7)+I(df$source^9))
-fit1 <-lm(formula = target ~ I(source) + I(source^2) + I(source^3) + I(source^4) + I(source^5), data = df)
-summary(fit1)
-sum(resid(fit1)^2)
+#path counting
+a_polyn <-nls(formula = target ~ I(alpha*source) + I(beta*source^2) + I(gamma*source^3) + I(delta*source^4) + I(delta*source^5),start = c(alpha=-10,beta=-10,gamma=-10,delta=-10), data = df)
+summary(a_polyn)
+sum(resid(a_polyn)^2)
 new = data.frame(source = df$source)
 x=df$source
-y=predict(fit1,new)
+y=predict(a_polyn,new)
+points(x,y,col = "purple")
+
+#nonnegative polynomial path counting
+a_polyn <-nls(formula = target ~ I(alpha*source) + I(beta*source^2) + I(gamma*source^3) + I(delta*source^4) + I(delta*source^5),start = c(alpha=0.01,beta=0.01,gamma=0.01,delta=0.01), data = df)
+summary(a_polyn)
+sum(resid(a_polyn)^2)
+new = data.frame(source = df$source)
+x=df$source
+y=predict(a_polyn,new)
 points(x,y,col = "green")
 
-coef(fit1)
+#matrix exponential
+a_exp <- nls(formula = target ~ I(alpha*source)+I(((alpha*source)^2)/2)+I(((alpha*source)^3)/6+I(((alpha*source)^4)/24)),start=c(alpha=0.01),data=df)
+summary(a_exp)
+sum(resid(a_exp)^2)
+new = data.frame(source = df$source)
+x=df$source
+y=predict(a_exp,new)
+points(x,y,col = "red")
+
+#Neumann pseudokernel
+a_neu <- nls(formula = target ~ I(alpha*source)+I((alpha*source)^2)+I((alpha*source)^3)+I((alpha*source)^4)+I((alpha*source)^5),start=c(alpha=0.01),data = df)
+summary(a_neu)
+sum(resid(a_neu)^2)
+new = data.frame(source = df$source)
+x=df$source
+y=predict(a_neu,new)
+points(x,y,col = "blue")
+
 
 #Now construct a prediction based on the best fit
-flamda = Matrix(0,  ncol = r,nrow = r, sparse = TRUE)
+#Now construct a prediction based on the best fit
+flamda_a_polyn = matrix(0,  ncol = r,nrow = r)
 new.dfb <- data.frame(source = as.numeric(baev_b$values))
-newdata = predict(fit1,new.dfb)
-#newdata = coef(fit)[1] + coef(fit)[2]*baev_b$values + (baev_b$values^3)*coef(fit)[3] + coef(fit)[4]*(baev_b$values^5) + coef(fit)[5]*(baev_b$values^7) + coef(fit)[6]*(baev_b$values^9)
-#hist(newdata)
-diag(flamda) = newdata
-#image(mc)
-#image(flamda)
-mp <- Matrix(data=0,sparse = TRUE)
-bv <- Matrix(baev_b$vectors,sparse = TRUE)
-mp <- bv %*% flamda %*% t(bv)
-h<-hist(as.numeric(mp))
-dimnames(mp) <- dimnames(adj_a)
-#mp <- baev_b$vectors %*% flamda %*% t(baev_b$vectors)
-#mp<-abs(mp)
+diag(flamda_a_polyn) = predict(a_polyn,new.dfb)
+mp_a_polyn <- baev_b$vectors %*% flamda_a_polyn %*% t(baev_b$vectors)
+dimnames(mp_a_polyn) <- dimnames(adj_a)
+
+flamda_a_exp = matrix(0,  ncol = r,nrow = r)
+new.dfb <- data.frame(source = as.numeric(baev_b$values))
+diag(flamda_a_exp) = predict(a_exp,new.dfb)
+mp_a_exp <- baev_b$vectors %*% flamda_a_exp %*% t(baev_b$vectors)
+dimnames(mp_a_exp) <- dimnames(adj_a)
+
+flamda_a_neu = matrix(0,  ncol = r,nrow = r)
+new.dfb <- data.frame(source = as.numeric(baev_b$values))
+diag(flamda_a_neu) = predict(a_neu,new.dfb)
+mp_a_neu <- baev_b$vectors %*% flamda_a_neu %*% t(baev_b$vectors)
+dimnames(mp_a_neu) <- dimnames(adj_a)
+
+
 
 #
 netest <- adj_c - adj_b
@@ -225,30 +256,56 @@ image(netest) #new edges
 netest[netest >= 1] <- 1
 netest[netest < 0] <- 0
 
-#Evaluate performance using ROC
-pred <- prediction(as.vector(mp),as.vector(netest))
-perf <- performance(pred,"tpr","fpr")
-plot(perf)
-auc <- performance(pred,"auc")
-auc
+pred_a_polyn <- prediction(as.vector(mp_a_polyn),as.vector(netest))
 
-precision_recall <- performance(pred, "prec", "rec")
-plot(precision_recall)
-sensitivity_specificity <- performance(pred,"sens","spec")
-plot(sensitivity_specificity)
-lift <- performance(pred,"lift","rpp")
-plot(lift)
+perf_a_polyn <- performance(pred_a_polyn, "tpr", "fpr")
+plot(perf_a_polyn)
+precision_recall_a_polyn <- performance(pred_a_polyn, "prec", "rec")
+plot(precision_recall_a_polyn)
+sensitivity_specificity_a_polyn <- performance(pred_a_polyn,"sens","spec")
+plot(sensitivity_specificity_a_polyn)
+lift_a_polyn <- performance(pred,"lift","rpp")
+plot(lift_a_polyn)
 
-acc <- performance(pred,'acc')
-f <- performance(pred,'f')
-plot(f)
-auc <- performance(pred,"auc")
-precision_recall <- performance(pred, "prec", "rec")
-plot(precision_recall)
-sensitivity_specificity <- performance(pred,"sens","spec")
-plot(sensitivity_specificity)
-lift <- performance(pred,"lift","rpp")
-plot(lift)
+acc_pred_a_polyn <- performance(pred_a_polyn,'acc')
+f_a_polyn <- performance(pred_a_polyn,'f')
+plot(f_a_polyn)
+auc_a_polyn <- performance(pred_a_polyn,"auc")
+
+
+pred_a_exp <- prediction(as.vector(mp_a_exp),as.vector(netest))
+
+perf_a_exp <- performance(pred_a_exp, "tpr", "fpr")
+plot(perf_a_exp)
+precision_recall_a_exp <- performance(pred_a_exp, "prec", "rec")
+plot(precision_recall_a_exp)
+sensitivity_specificity_a_exp <- performance(pred_a_exp,"sens","spec")
+plot(sensitivity_specificity_a_exp)
+lift_a_exp <- performance(pred,"lift","rpp")
+plot(lift_a_exp)
+
+acc_pred_a_exp <- performance(pred_a_exp,'acc')
+err_pred_a_exp <- performance(pred_a_exp,'err')
+f_a_exp <- performance(pred_a_exp,'f')
+plot(f_a_exp)
+auc_a_exp <- performance(pred_a_exp,"auc")
+
+
+pred_a_neu <- prediction(as.vector(mp_a_neu),as.vector(netest))
+
+perf_a_neu <- performance(pred_a_neu, "tpr", "fpr")
+plot(perf_a_neu)
+precision_recall_a_neu <- performance(pred_a_neu, "prec", "rec")
+plot(precision_recall_a_neu)
+sensitivity_specificity_a_neu <- performance(pred_a_neu,"sens","spec")
+plot(sensitivity_specificity_a_neu)
+lift_a_neu <- performance(pred,"lift","rpp")
+plot(lift_a_neu)
+
+acc_pred_a_neu <- performance(pred_a_neu,'acc')
+f_a_neu <- performance(pred_a_neu,'f')
+plot(f_a_neu)
+auc_a_neu <- performance(pred_a_neu,"auc")
 
 #calculate jaccard similarity measure
 adj_b_jacc <- Matrix(similarity.jaccard(g_b),sparse=TRUE)
@@ -289,11 +346,10 @@ degree <- function(m)
   return (D)
 }
 
+adj_b_d<-degree(adj_b)
+
 #calculate preferential attachment scores
 adj_b_ppa<-as.matrix(as.vector(diag(adj_b_d))%*%t(as.vector(diag(adj_b_d))))
-
-h<- hist(adj_b_ppa)
-h$counts
 
 pred_ppa <- prediction(as.vector(adj_b_ppa),as.vector(netest))
 perf_ppa <- performance(pred_ppa,"tpr","fpr")
@@ -317,6 +373,67 @@ cutoffs <- data.frame(cut=precision_recall@alpha.values[[1]], recall=precision_r
 cutoffs <- cutoffs[order(cutoffs$precision, decreasing=TRUE),]
 head(cutoffs)
 head(subset(cutoffs, fpr < 0.20))
+
+#normalise the matrix
+
+adj_a_d <- degree(adj_a)
+
+#take squre root of the diagonal of the degree matrix
+adj_a_ds <- Matrix(data = 0,nrow=nrow(adj_a),ncol=nrow(adj_a))
+
+diag(adj_a_ds)<-1/sqrt(diag(adj_a_d))
+
+adj_a_n <- adj_a_ds%*%adj_a%*%adj_a_ds
+
+t <- (adj_a_n + t(adj_a_n))
+
+ne_n <- adj_b + t(adj_b) - (adj_a + t(adj_a))
+
+
+f2 <- function(x, extra=NULL) { cat("."); as.vector((adj_a_n + t(adj_a_n)) %*% x) }
+baev_a_n <- arpack(f2, sym=TRUE, options=list(n=vcount(g_a), nev=r, ncv=r+3,
+                                            which="LM", maxiter=vcount(g_a)*12))
+
+#compute multiplication of eigenvalues of A and matrix B
+b_eigen_n <- t(baev_a_n$vectors) %*% ne %*% baev_a_n$vectors
+#hist(as.numeric(b_eigen))
+image(b_eigen_n)
+
+df = as.data.frame(baev_a_n$values) #the independent variable
+df$flamda = as.numeric(diag(b_eigen)) #the dependent function
+colnames(df) = c("source","target")
+plot(x=df$source,y=df$target)
+
+#polynomial
+n_poly <-nls(formula = target ~ I(alpha*source) + I(beta*source^2) + I(gamma*source^3) + I(delta*source^4) + I(delta*source^5),start = c(alpha=0.01,beta=0.01,gamma=0.01,delta=0.01), data = df)
+summary(n_poly)
+sum(resid(n_poly)^2)
+new = data.frame(source = df$source)
+x=df$source
+y=predict(n_poly,new)
+points(x,y,col = "green")
+
+#matrix exponential
+n_exp <- nls(formula = target ~ I(alpha*source)+I(((alpha*source)^2)/2)+I(((alpha*source)^3)/6+I(((alpha*source)^4)/24)),start=c(alpha=0.01),data=df)
+summary(n_exp)
+sum(resid(n_exp)^2)
+new = data.frame(source = df$source)
+x=df$source
+y=predict(n_exp,new)
+points(x,y,col = "red")
+
+#Neumann pseudokernel
+n_neu <- nls(formula = target ~ I(alpha*source)+I((alpha*source)^2)+I((alpha*source)^3)+I((alpha*source)^4)+I((alpha*source)^5),start=c(alpha=0.01),data = df)
+summary(n_neu)
+sum(resid(n_neu)^2)
+new = data.frame(source = df$source)
+x=df$source
+y=predict(n_neu,new)
+points(x,y,col = "blue")
+
+
+
+#######################################################################
 
 #Compare the prediction and the real matrix
 ind <- which(mp > 2.305964e-05)
