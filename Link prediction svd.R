@@ -69,7 +69,8 @@ colnames(sample_b) <- c("merchant","client")
 sample_c<-edgelist_pred[,2:3] #predict data frame
 colnames(sample_c) <- c("merchant","client")
 
-
+summary(edgelist_pred)
+basic(edgelist_pred)
 
 #fill the adjacency matrix. 
 #clients rows
@@ -102,37 +103,25 @@ s=100
 svd_a<-irlba(adj_a, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
              tol = 1e-06, V = NULL, matmul = NULL)
-#svd_am <- Matrix(0, ncol = s,nrow = s)
-#diag(svd_am) <- svd_a$d
-#t<-svd_a$u %*% svd_am %*% t(svd_a$v)
-#image(adj_a)
-##image(t)
 
 svd_b<-irlba(adj_b, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
              tol = 1e-06, V = NULL, matmul = NULL)
-#svd_bm <- Matrix(0, ncol = s,nrow = s)
-#diag(svd_bm) <- svd_b$d
-#t<-svd_b$u %*% svd_bm %*% t(svd_b$v)
-#image(adj_b)
-##image(t)
+
+svd_c<-irlba(adj_c, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
+             sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
+             tol = 1e-06, V = NULL, matmul = NULL)
 
 #spectral evolution test
-plot(x=c(nrow(sample_a),nrow(sample_b)),y=c(svd_a$d[1],svd_b$d[1]),xlab = 'Edge count ', ylab = 'Singular values')
+plot(x=c(nrow(sample_a),nrow(sample_b),nrow(sample_c)),y=c(svd_a$d[1],svd_b$d[1],svd_c$d[1]),xlab = 'Edge count ', ylab = 'Singular values')
 
+#Find matrix of new edges
 ne <- adj_b - adj_a
-#image(adj_a)
-#image(adj_b)
-#image(ne)
 
 svd_ne<-irlba(ne, nu = s, nv = s, adjust = 3, aug = c("ritz","harm"),
              sigma = c("ls","ss"), maxit = 1000, m_b = 20, reorth = 2,
              tol = 1e-06, V = NULL, matmul = NULL)
-#svd_nem <- Matrix(0, ncol = s,nrow = s)
-#diag(svd_nem) <- svd_ne$d
-#t<-svd_ne$u %*% svd_nem %*% t(svd_ne$v)
-##image(ne)
-##image(t)
+
 
 
 #spectral diagonality test
@@ -190,26 +179,27 @@ points(x,y,col = "blue")
 
 
 #Now construct a prediction based on the best fit
+
+#odd nonnegative path counting
 flamda_a_poly_odd = matrix(0,  ncol = s,nrow = s)
 new.dfb <- data.frame(source = as.numeric(svd_b$d))
 diag(flamda_a_poly_odd) = predict(a_poly_odd,new.dfb)
 mp_a_poly_odd <- svd_b$u %*% flamda_a_poly_odd %*% t(svd_b$v)
 dimnames(mp_a_poly_odd) <- dimnames(adj_a)
-mp_a_poly_odd[1:10,1:10]
 
+#Hyperbolic sine pseudokernel
 flamda_a_sinh = matrix(0,  ncol = s,nrow = s)
 new.dfb <- data.frame(source = as.numeric(svd_b$d))
 diag(flamda_a_sinh) = predict(a_sinh,new.dfb)
 mp_a_sinh <- svd_b$u %*% flamda_a_sinh %*% t(svd_b$v)
 dimnames(mp_a_sinh) <- dimnames(adj_a)
-mp_a_sinh[1:10,1:10]
 
+#Odd Neumann pseudokernel
 flamda_a_neu_o = matrix(0,  ncol = s,nrow = s)
 new.dfb <- data.frame(source = as.numeric(svd_b$d))
 diag(flamda_a_neu_o) = predict(a_neu_o,new.dfb)
 mp_a_neu_o <- svd_b$u %*% flamda_a_neu_o %*% t(svd_b$v)
 dimnames(mp_a_neu_o) <- dimnames(adj_a)
-mp_a_neu_o[1:10,1:10]
 
 netest <- adj_c - adj_b
 #hist(as.numeric(netest))
@@ -220,11 +210,14 @@ netest[netest < 0] <- 0
 hist(as.numeric(netest))
 
 
+#odd nonnegative path counting evaluation
 pred_a_poly_odd <- prediction(as.vector(mp_a_poly_odd),as.vector(netest))
 perf_a_poly_odd <- performance(pred_a_poly_odd, "tpr", "fpr")
 plot(perf_a_poly_odd)
+
 precision_recall_a_poly_odd <- performance(pred_a_poly_odd, "prec", "rec")
 plot(precision_recall_a_poly_odd)
+
 sensitivity_specificity_a_poly_odd <- performance(pred_a_poly_odd,"sens","spec")
 plot(sensitivity_specificity_a_poly_odd)
 lift_a_poly_odd <- performance(pred,"lift","rpp")
@@ -235,8 +228,9 @@ f_a_poly_odd <- performance(pred_a_poly_odd,'f')
 plot(f_a_poly_odd)
 auc_a_poly_odd <- performance(pred_a_poly_odd,"auc")
 
-
+#Hyperbolic sine evaluation
 pred_a_sinh <- prediction(as.vector(mp_a_sinh),as.vector(netest))
+
 perf_a_sinh <- performance(pred_a_sinh, "tpr", "fpr")
 plot(perf_a_sinh)
 precision_recall_a_sinh <- performance(pred_a_sinh, "prec", "rec")
@@ -252,7 +246,7 @@ f_a_sinh <- performance(pred_a_sinh,'f')
 plot(f_a_sinh)
 auc_a_sinh <- performance(pred_a_sinh,"auc")
 
-
+#Odd Neumann pseudokernel evaluation
 pred_a_neu_o <- prediction(as.vector(mp_a_neu_o),as.vector(netest))
 perf_a_neu_o <- performance(pred_a_neu_o, "tpr", "fpr")
 plot(perf_a_neu_o)
@@ -268,28 +262,33 @@ f_a_neu_o <- performance(pred_a_neu_o,'f')
 plot(f_a_neu_o)
 auc_a_neu_o <- performance(pred_a_neu_o,"auc")
 
-cutoffs <- data.frame(cut=perf@alpha.values[[1]], fpr=perf@x.values[[1]], 
-                      tpr=perf@y.values[[1]])
-cutoffs <- cutoffs[order(cutoffs$tpr, decreasing=TRUE),]
+cutoffs <- data.frame(cut=precision_recall_a_poly_odd@alpha.values[[1]], recall=precision_recall_a_poly_odd@x.values[[1]], 
+                      precision=precision_recall_a_poly_odd@y.values[[1]])
+cutoffs <- cutoffs[order(cutoffs$recall, decreasing=TRUE),]
 head(cutoffs)
-head(subset(cutoffs, fpr < 0.50))
+head(subset(cutoffs, recall < 0.20))
 
-#calculate jaccard similarity measure
+#jaccard similarity measure 
 adj_b_jacc <- Matrix(similarity.jaccard(g_b),sparse=TRUE)
 
+#jaccard similarity measure evaluation
 pred_jacc <- prediction(as.vector(adj_b_jacc),as.vector(netest))
-perf_jacc <- performance(pred,"tpr","fpr")
+perf_jacc <- performance(pred_jacc,"tpr","fpr")
 plot(perf_jacc)
-sensitivity_specificity_jacc <- performance(pred,"sens","spec")
+
+sensitivity_specificity_jacc <- performance(pred_jacc,"sens","spec")
 plot(sensitivity_specificity_jacc)
+
 precision_recall_jacc <- performance(pred, "prec", "rec")
 plot(precision_recall_jacc)
+
 auc_jacc <- performance(pred_jacc,"auc")
 auc_jacc
 
-#calculate adamic adar similarity measure
+#adamic adar similarity measure
 adj_b_adar <- Matrix(similarity.invlogweighted(g_b),sparse=TRUE)
 
+#adamic adar similarity measure evaluation
 pred_adar <- prediction(as.vector(adj_b_adar),as.vector(netest))
 perf_adar <- performance(pred,"tpr","fpr")
 plot(perf_adar)
@@ -300,8 +299,7 @@ plot(precision_recall_adar)
 auc_adar <- performance(pred_adar,"auc")
 auc_adar
 
-
-degree <- function(m)
+degreee <- function(m)
   #The function accepts adjacency matrix and returns the degree matrix
 {
   D <- Matrix(0,nrow = nrow(m),ncol = nrow(m))
@@ -313,14 +311,19 @@ degree <- function(m)
   return (D)
 }
 
-#calculate preferential attachment scores
-adj_b_d <- degree(adj_b)
+#calculate degree of a matrix
+adj_b_d <- degree(g_b)
+test <- degreee(adj_b)
 
+#calculate preferential attachment scores by multiplying degrees of all the vertices
 adj_b_ppa<-as.matrix(as.vector(diag(adj_b_d))%*%t(as.vector(diag(adj_b_d))))
+adj_b_ppa<-as.matrix(as.vector(adj_b_d))%*%t(as.vector(adj_b_d))
+
 
 h<- hist(adj_b_ppa)
 h$counts
 
+#preferential attachment evaluation
 pred_ppa <- prediction(as.vector(adj_b_ppa),as.vector(netest))
 perf_ppa <- performance(pred_ppa,"tpr","fpr")
 plot(perf_ppa)
@@ -362,12 +365,15 @@ adj_cn <- normalise(adj_c)
 hist(as.numeric(adj_cn))
 
 
+
 ############################################################################
 
 
 
 #find concetration of values and set them to be 0
 #mp<-abs(mp)
+mp<-mp_a_poly_odd
+dimnames(mp) <- dimnames(adj_a)
 h<-hist(as.numeric(mp))
 h$counts
 #z<-match(max(h$counts),h$counts) #zero 
@@ -376,8 +382,8 @@ l<-length(h$breaks)
 #mp[mp<h$breaks[z-l]] <- 1
 mp[mp<=h$breaks[l-round(l/1.2)]] <- 0
 mp[mp>h$breaks[l-round(l/1.2)]] <- 1
-mp[mp<=0.0006290906] <- 0
-mp[mp>0.0006290906] <- 1
+mp[mp<=0.7818519] <- 0
+mp[mp>0.7818519] <- 1
 hist(as.numeric(mp))
 #image(mp)
 #image(netest)
@@ -386,6 +392,7 @@ hist(as.numeric(mp))
 ind <- which(mp == 1)
 for (i in 1:length(ind))
 {
+  
   k <- arrayInd(ind[i],dim(mp))
   rownames(mp)[k[,1]]
   colnames(mp)[k[,2]]
