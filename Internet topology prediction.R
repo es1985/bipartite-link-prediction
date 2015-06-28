@@ -901,3 +901,129 @@ ppa <- function(m)
   }
   return(d)
 }
+
+
+
+
+
+
+#####################################
+###Spectral evolution test
+
+#CAIDA
+t1 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20040105.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t2 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20040503.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t3 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20041004.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t4 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20050307.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t5 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20050801.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t6 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20060102.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t7 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20060213.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t8 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070108.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t9 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070212.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t10 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070813.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t11 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20071112.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+
+
+t2 <- unique(rbind(t1,t2))
+t3 <-unique(rbind(t2,t3))
+t4 <-unique(rbind(t4,t3))
+t5 <-unique(rbind(t5,t4))
+t6 <-unique(rbind(t6,t5))
+t7 <-unique(rbind(t7,t6))
+t8 <-unique(rbind(t8,t7))
+t9 <-unique(rbind(t9,t8))
+t10 <-unique(rbind(t10,t9))
+t11 <-unique(rbind(t11,t10))
+
+
+#Equate the number of nodes in source, target and test datasets
+outersect <- function (x,y)
+{
+  sort(c(setdiff(x,y),setdiff(y,x)))
+}
+
+diff_as1<-outersect(t1$as1,t2$as1)
+
+
+df1 <- t1[!(t1$as1 %in% diff_as1) && !(t1$as1 %in% diff_as2),]
+df2 <- t2[!(t2$as1 %in% diff_as1) && !(t2$as2 %in% diff_as2),]
+
+setdiff(df2$as1,df1$as1)
+setdiff(df1$as1,df2$as1)
+
+outersect(df1$as1,df2$as1)
+outersect(df1$as2,df2$as2)
+
+
+bla <- data.frame(v1=intersect(t2[,1], t1[,1]), v2=intersect(t2[,2], t1[,2]))
+
+equate_nodes <- function(df1,df2)
+{
+diff_as1 <- outersect(df1$as1,df2$as1)
+diff_as2 <- outersect(df1$as2,df2$as2)    
+
+while(length(diff_as1) > 0 & length(diff_as2) > 0)
+{  
+df1 <- df1[!(df1$as1 %in% diff_as1) & !(df1$as2 %in% diff_as2),]
+df2 <- df2[!(df2$as1 %in% diff_as1) & !(df2$as2 %in% diff_as2),]
+
+diff_as1 <- outersect(df1$as1,df2$as1)
+diff_as2 <- outersect(df1$as2,df2$as2)  
+
+#paste('Length of difference 1 is', print(length(diff_as1)))
+#paste('Length of difference 2 is', print(length(diff_as2)))
+}
+
+return (list(df1,df2))
+}
+
+t1 <- as.data.frame(equate_nodes(t1,t2)[1])
+t2 <- as.data.frame(equate_nodes(t1,t2)[2])
+t3 <- as.data.frame(equate_nodes(t1,t3)[2])
+t4 <- as.data.frame(equate_nodes(t1,t4)[2])
+t5 <- as.data.frame(equate_nodes(t1,t5)[2])
+t6 <- as.data.frame(equate_nodes(t1,t6)[2])
+t7 <- as.data.frame(equate_nodes(t1,t7)[2])
+t8 <- as.data.frame(equate_nodes(t1,t8)[2])
+t9 <- as.data.frame(equate_nodes(t1,t9)[2])
+t10 <- as.data.frame(equate_nodes(t1,t10)[2])
+t11 <- as.data.frame(equate_nodes(t1,t11)[2])
+
+
+find_eigenvalues <- function(df)
+{
+r <- 10  
+g <- graph.data.frame(df,directed = FALSE)
+adj <- get.adjacency(g, sparse = TRUE,type=c("both"))
+f2 <- function(x, extra=NULL) { cat("."); as.vector(adj %*% x) }
+baev <- arpack(f2, sym=TRUE, options=list(n=vcount(g), nev=r, ncv=r+3,
+                                            which="LM", maxiter=vcount(g)*12))
+
+return (list(baev$values,ecount(g)))
+}
+
+tlist <- list(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
+
+#Find edge count and list of eigenvalues
+se <- lapply(tlist,find_eigenvalues)
+
+se[[1]][[1]]
+length(se[[1]][[1]])
+
+
+x<-NULL
+y<-NULL
+
+coord <- data.frame('x'=numeric(1),'y'=numeric(1),stringsAsFactors=FALSE)
+coord_x <- list()
+coord_y <- list()
+for (i in 1 : length(se))
+{
+  for (j in 1 : length(se[[i]][[1]]))
+  {  
+    coord_x = rbind(coord_x,se[[i]][[2]])
+    coord_y = rbind(coord_y,se[[i]][[1]][j])
+  }
+}
+
+plot(coord_x,coord_y,xlab = 'Edge count', ylab = 'Eigenvalues',ylim= c(-300,300))
