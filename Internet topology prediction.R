@@ -177,13 +177,6 @@ b_eigen <- t(baev_a$vectors) %*% ne %*% baev_a$vectors
 #hist(as.numeric(b_eigen))
 image(b_eigen)
 
-
-#df = as.data.frame(nlamda)
-#df = as.data.frame(as.numeric(diag(b_eigen))) #the independent variable
-#df$flamda = nlamda #the dependent function
-#colnames(df) = c("source","target")
-#plot(df$source,df$target)
-
 df = as.data.frame(baev_a$values) #the independent variable
 df$flamda = as.numeric(diag(b_eigen)) #the dependent function
 colnames(df) = c("source","target")
@@ -226,7 +219,6 @@ y=predict(a_neu,new)
 points(x,y,col = "blue")
 
 
-#Now construct a prediction based on the best fit
 #Now construct a prediction based on the best fit
 flamda_a_polyn = matrix(0,  ncol = r,nrow = r)
 new.dfb <- data.frame(source = as.numeric(baev_b$values))
@@ -942,21 +934,6 @@ outersect <- function (x,y)
   sort(c(setdiff(x,y),setdiff(y,x)))
 }
 
-diff_as1<-outersect(t1$as1,t2$as1)
-
-
-df1 <- t1[!(t1$as1 %in% diff_as1) && !(t1$as1 %in% diff_as2),]
-df2 <- t2[!(t2$as1 %in% diff_as1) && !(t2$as2 %in% diff_as2),]
-
-setdiff(df2$as1,df1$as1)
-setdiff(df1$as1,df2$as1)
-
-outersect(df1$as1,df2$as1)
-outersect(df1$as2,df2$as2)
-
-
-bla <- data.frame(v1=intersect(t2[,1], t1[,1]), v2=intersect(t2[,2], t1[,2]))
-
 equate_nodes <- function(df1,df2)
 {
 diff_as1 <- outersect(df1$as1,df2$as1)
@@ -990,40 +967,94 @@ t10 <- as.data.frame(equate_nodes(t1,t10)[2])
 t11 <- as.data.frame(equate_nodes(t1,t11)[2])
 
 
+#Define number of values to compute similarity metrics for
+q <- 40
+
 find_eigenvalues <- function(df)
 {
-r <- 10  
 g <- graph.data.frame(df,directed = FALSE)
 adj <- get.adjacency(g, sparse = TRUE,type=c("both"))
 f2 <- function(x, extra=NULL) { cat("."); as.vector(adj %*% x) }
-baev <- arpack(f2, sym=TRUE, options=list(n=vcount(g), nev=r, ncv=r+3,
+baev <- arpack(f2, sym=TRUE, options=list(n=vcount(g), nev=q, ncv=q+3,
                                             which="LM", maxiter=vcount(g)*12))
 
-return (list(baev$values,ecount(g)))
+return (list(baev,ecount(g)))
 }
 
 tlist <- list(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
 
-#Find edge count and list of eigenvalues
+#Find edge count and list of eigenvalues 
+#se denotes spectral evolution
 se <- lapply(tlist,find_eigenvalues)
 
-se[[1]][[1]]
-length(se[[1]][[1]])
-
-
-x<-NULL
-y<-NULL
-
-coord <- data.frame('x'=numeric(1),'y'=numeric(1),stringsAsFactors=FALSE)
 coord_x <- list()
 coord_y <- list()
+
 for (i in 1 : length(se))
 {
-  for (j in 1 : length(se[[i]][[1]]))
+  for (j in 1 : length(se[[1]][[1]]$values))
   {  
     coord_x = rbind(coord_x,se[[i]][[2]])
-    coord_y = rbind(coord_y,se[[i]][[1]][j])
+    coord_y = rbind(coord_y,se[[i]][[1]]$values[j])
   }
 }
 
 plot(coord_x,coord_y,xlab = 'Edge count', ylab = 'Eigenvalues',ylim= c(-300,300))
+
+
+#Eigenvector evolution
+sim_k_k <- Matrix(nrow=length(se), ncol = q)
+edge_count <- list()
+
+for (i in 1 : length(se))
+{  
+  for (j in 1: q)
+  {
+  sim_k_k[i,j] <- cosine(as.vector(se[[1]][[1]]$vectors[,j]),as.vector(se[[i]][[1]]$vectors[,j]))
+  }
+  edge_count[i] <- se[[i]][[2]]
+}
+
+plot(edge_count,sim_k_k[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'l',col = hcl(h = 120, c = 100, l = 85),ylim=c(-1,1))
+for (i in 2:q)
+{
+  lines(edge_count,sim_k_k[,i],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'l',col = hcl(h = 120-10*i, c = 100, l = 85))
+}
+
+
+#Eigenvector stability
+sim_k_l <- Matrix(nrow=q, ncol = q)
+
+for (i in 1:q)
+{
+  for (j in 1:q)
+  {
+    sim_k_l[i,j] <- cosine(as.vector(se[[1]][[1]]$vectors[,i]),as.vector(se[[4]][[1]]$vectors[,j]))
+  }
+}
+
+image(sim_k_l)
+
+#Spectral diagonality
+
+sd <- function(df1,df2)
+{
+#compute matrix of new edges - i.e. B
+  g_1 <- graph.data.frame(df1,directed = FALSE)
+  adj_1 <- get.adjacency(g_1, sparse = TRUE,type=c("both"))
+  g_2 <- graph.data.frame(df2,directed = FALSE)
+  adj_2 <- get.adjacency(g_2, sparse = TRUE,type=c("both"))
+  ne <- adj_2 - adj_1
+  col.order <- dimnames(adj_1)[[1]]
+  row.order <- dimnames(adj_1)[[2]]
+  ne <- ne[row.order,col.order]
+  f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_1 %*% x) }
+  baev_1 <- arpack(f2, sym=TRUE, options=list(n=vcount(g_1), nev=q, ncv=q+3,
+                                            which="LM", maxiter=vcount(g_1)*12))
+  #compute multiplication of eigenvalues of A and matrix B
+  b_eigen <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
+  #hist(as.numeric(b_eigen))
+  image(b_eigen)
+}
+
+sd(t1,t4)
