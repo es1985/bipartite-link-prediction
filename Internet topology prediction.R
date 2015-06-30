@@ -1010,17 +1010,22 @@ for (i in 1 : length(se))
 {  
   for (j in 1: q)
   {
-  sim_k_k[i,j] <- cosine(as.vector(se[[1]][[1]]$vectors[,j]),as.vector(se[[i]][[1]]$vectors[,j]))
+  sim_k_k[i,j] <- cosine(as.vector(se[[i]][[1]]$vectors[,j]),as.vector(se[[1]][[1]]$vectors[,j]))
   }
   edge_count[i] <- se[[i]][[2]]
 }
 
-plot(edge_count,sim_k_k[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'l',col = hcl(h = 120, c = 100, l = 85),ylim=c(-1,1))
-for (i in 2:q)
-{
-  lines(edge_count,sim_k_k[,i],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'l',col = hcl(h = 120-10*i, c = 100, l = 85))
-}
+plot(rep(edge_count[1],length(sim_k_k[1,])),sim_k_k[1,],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 5, c = 100, l = 85),ylim=c(-1,1)
+,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])))
 
+for (i in 2:length(se))
+{
+  for (j in 1:length(sim_k_k[i,]))
+  {
+    j<-5
+    lines(edge_count[i],sim_k_k[i,j],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 0+5*j, c = 100, l = 85))
+  }
+}
 
 #Eigenvector stability
 sim_k_l <- Matrix(nrow=q, ncol = q)
