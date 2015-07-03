@@ -968,7 +968,7 @@ t11 <- as.data.frame(equate_nodes(t1,t11)[2])
 
 
 #Define number of values to compute similarity metrics for
-q <- 40
+q <- 10
 
 find_eigenvalues <- function(df)
 {
@@ -1010,20 +1010,20 @@ for (i in 1 : length(se))
 {  
   for (j in 1: q)
   {
-  sim_k_k[i,j] <- cosine(as.vector(se[[i]][[1]]$vectors[,j]),as.vector(se[[1]][[1]]$vectors[,j]))
+  sim_k_k[i,j] <- abs(cosine(as.vector(se[[i]][[1]]$vectors[,j]),as.vector(se[[1]][[1]]$vectors[,j])))
   }
   edge_count[i] <- se[[i]][[2]]
 }
 
-plot(rep(edge_count[1],length(sim_k_k[1,])),sim_k_k[1,],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 5, c = 100, l = 85),ylim=c(-1,1)
+plot(rep(edge_count[1],length(sim_k_k[1,])),sim_k_k[1,],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
 ,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])))
 
 for (i in 2:length(se))
 {
-  for (j in 1:length(sim_k_k[i,]))
+  for (j in 1:(length(sim_k_k[i,])/4))
   {
-    j<-5
-    lines(edge_count[i],sim_k_k[i,j],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 0+5*j, c = 100, l = 85))
+#    j<-11
+    lines(edge_count[i],sim_k_k[i,j],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 0+15*j, c = 100, l = 85))
   }
 }
 
