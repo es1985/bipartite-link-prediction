@@ -11,18 +11,34 @@ options(java.parameters = "-Xmx4g")
 
 rm(list=ls(all=TRUE))
 
+
 #CAIDA
-edgelist_source <- read.csv('/home/esavin/Link prediction/as-caida20071029.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-edgelist_target <- read.csv('/home/esavin/Link prediction/as-caida20071105.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-edgelist_pred <- read.csv('/home/esavin/Link prediction/as-caida20071112.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t1 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20040105.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t2 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20040503.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t3 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20041004.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t4 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20050307.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t5 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20050801.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t6 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20060102.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t7 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20060213.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t8 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070108.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t9 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070212.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t10 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070813.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+t11 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20071112.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
 
-#UCLA
-edgelist_source <- read.csv('/home/esavin/Link prediction/UCLA/201310.relationship',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-edgelist_target <- read.csv('/home/esavin/Link prediction/UCLA/201403.relationship',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-edgelist_pred <- read.csv('/home/esavin/Link prediction/UCLA/201410.relationship',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
 
-edgelist_target <- unique(rbind(edgelist_source,edgelist_target))
-edgelist_pred <-unique(rbind(edgelist_target,edgelist_pred))
+t2 <- unique(rbind(t1,t2))
+t3 <-unique(rbind(t2,t3))
+t4 <-unique(rbind(t4,t3))
+t5 <-unique(rbind(t5,t4))
+t6 <-unique(rbind(t6,t5))
+t7 <-unique(rbind(t7,t6))
+t8 <-unique(rbind(t8,t7))
+t9 <-unique(rbind(t9,t8))
+t10 <-unique(rbind(t10,t9))
+t11 <-unique(rbind(t11,t10))
+
+#####################################
+###Network evolution inspection
 
 #Equate the number of nodes in source, target and test datasets
 outersect <- function (x,y)
@@ -30,57 +46,143 @@ outersect <- function (x,y)
   sort(c(setdiff(x,y),setdiff(y,x)))
 }
 
-diff_as1<-outersect(edgelist_source$as1,edgelist_target$as1)
-diff_as2<-outersect(edgelist_source$as2,edgelist_target$as2)
-
-while(length(diff_as1) > 0 & length(diff_as2) > 0)
+equate_nodes <- function(df1,df2)
 {
-  for (i in 1:length(diff_as1))
-  {
-    edgelist_source <- edgelist_source[edgelist_source$as1 != diff_as1[i],]
-    edgelist_target <- edgelist_target[edgelist_target$as1 != diff_as1[i],]
+  diff_as1 <- outersect(df1$as1,df2$as1)
+  diff_as2 <- outersect(df1$as2,df2$as2)    
+  
+  while(length(diff_as1) > 0 & length(diff_as2) > 0)
+  {  
+    df1 <- df1[!(df1$as1 %in% diff_as1) & !(df1$as2 %in% diff_as2),]
+    df2 <- df2[!(df2$as1 %in% diff_as1) & !(df2$as2 %in% diff_as2),]
+    
+    diff_as1 <- outersect(df1$as1,df2$as1)
+    diff_as2 <- outersect(df1$as2,df2$as2)  
+    
+    #paste('Length of difference 1 is', print(length(diff_as1)))
+    #paste('Length of difference 2 is', print(length(diff_as2)))
   }
   
-  for (i in 1:length(diff_as2))
-  {
-    edgelist_source <- edgelist_source[edgelist_source$as2 != diff_as2[i],]
-    edgelist_target <- edgelist_target[edgelist_target$as2 != diff_as2[i],]
-  }
-  
-  
-  diff_as1<-outersect(edgelist_source$as1,edgelist_pred$as1)
-  diff_as2<-outersect(edgelist_source$as2,edgelist_pred$as2)
-  
-  #Remove rows where elements appear in just 1 data set and not both, i.e. make sure both datasets
-  #have the same number of nodes
-  for (i in 1:length(diff_as1))
-  {
-    edgelist_source <- edgelist_source[edgelist_source$as1 != diff_as1[i],]
-    edgelist_pred <- edgelist_pred[edgelist_pred$as1 != diff_as1[i],]
-  }
-  
-  for (i in 1:length(diff_as2))
-  {
-    edgelist_source <- edgelist_source[edgelist_source$as2 != diff_as2[i],]
-    edgelist_pred <- edgelist_pred[edgelist_pred$as2 != diff_as2[i],]
-  }
-  
-  diff_as1<-outersect(edgelist_source$as1,edgelist_target$as1)
-  diff_as2<-outersect(edgelist_source$as2,edgelist_target$as2)
+  return (list(df1,df2))
 }
 
+t1 <- as.data.frame(equate_nodes(t1,t2)[1])
+t2 <- as.data.frame(equate_nodes(t1,t2)[2])
+t3 <- as.data.frame(equate_nodes(t1,t3)[2])
+t4 <- as.data.frame(equate_nodes(t1,t4)[2])
+t5 <- as.data.frame(equate_nodes(t1,t5)[2])
+t6 <- as.data.frame(equate_nodes(t1,t6)[2])
+t7 <- as.data.frame(equate_nodes(t1,t7)[2])
+t8 <- as.data.frame(equate_nodes(t1,t8)[2])
+t9 <- as.data.frame(equate_nodes(t1,t9)[2])
+t10 <- as.data.frame(equate_nodes(t1,t10)[2])
+t11 <- as.data.frame(equate_nodes(t1,t11)[2])
 
-#Detect new edges between the target and the source data sets
-#new_edges_ts <-edgelist_target[!duplicated(rbind(edgelist_source, edgelist_target))[-seq_len(nrow(edgelist_source))], ]
 
-#Filter out as1s active in the source dataset 
-#active_as1s_source <-edgelist_source[edgelist_source$as1 %in% new_edges_ts$as1,]
+#Define number of values to compute similarity metrics for
+q <- 20
 
-#Detect new edges between the prediction and target
-#new_edges_pt <-edgelist_pred[!duplicated(rbind(edgelist_target, edgelist_pred))[-seq_len(nrow(edgelist_target))], ]
+find_eigenvalues <- function(df)
+{
+  g <- graph.data.frame(df,directed = FALSE)
+  adj <- get.adjacency(g, sparse = TRUE,type=c("both"))
+  f2 <- function(x, extra=NULL) { cat("."); as.vector(adj %*% x) }
+  baev <- arpack(f2, sym=TRUE, options=list(n=vcount(g), nev=q, ncv=q+3,
+                                            which="LM", maxiter=vcount(g)*12))
+  
+  return (list(baev,ecount(g)))
+}
 
-#Filter out as1s active in the source dataset
-#active_as1s_target <-edgelist_target[edgelist_target$as1 %in% new_edges_pt$as1,]
+tlist <- list(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
+
+#Find edge count and list of eigenvalues 
+#se denotes spectral evolution
+#se is an object that contains eigenvalue decomposition for 
+#t1-x timepoints together with the respective edge count
+se <- lapply(tlist,find_eigenvalues)
+
+##Spectral evolution of the network
+eigen_values <- Matrix(nrow=length(se), ncol = q)
+edge_count <- list()
+
+for (i in 1 : length(se))
+{  
+  for (j in 1: q)
+  {
+    eigen_values[i,j] <- se[[i]][[1]]$values[j]
+  }
+  edge_count[i] <- se[[i]][[2]]
+}
+
+plot(edge_count,eigen_values[,1],xlab = 'Edge count', ylab = 'Eigenvalues',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim = c(min(eigen_values),max(eigen_values))
+     ,main = 'Spectral evolution. Dominant values closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
+
+for (i in 2:q)
+{
+  lines(edge_count,eigen_values[,i],xlab = 'Edge count', ylab = 'Eigenvalues',type = 'b',col = hcl(h = 0+15*i, c = 100, l = 85),pch=20,cex = 1)
+}
+
+#Eigenvector evolution
+#Computes chart of eigenvector evolution
+sim_k_l <- Matrix(nrow=length(se), ncol = q)
+edge_count <- list()
+
+for (i in 1 : length(se))
+{  
+  for (j in 1: q)
+  {
+    sim_k_l[i,j] <- abs(cosine(as.vector(se[[i]][[1]]$vectors[,j]),as.vector(se[[1]][[1]]$vectors[,j])))
+  }
+  edge_count[i] <- se[[i]][[2]]
+}
+
+plot(edge_count,sim_k_l[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
+     ,main = 'Eigenvector evolution Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
+
+for (i in 2:q)
+{
+  lines(edge_count,sim_k_l[,i],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 0+15*i, c = 100, l = 85),pch=20,cex = 1)
+}
+
+#Eigenvector stability
+#Computes stability of all the eigenvectors from time to time T
+#substitute with the required X for t and Y for T in 
+#se[[X]][[1]] and se[[Y]][[1]]
+sim_k_k <- Matrix(nrow=q, ncol = q)
+
+for (i in 1:q)
+{
+  for (j in 1:q)
+  {
+    sim_k_k[i,j] <- abs(cosine(as.vector(se[[1]][[1]]$vectors[,i]),as.vector(se[[9]][[1]]$vectors[,j])))
+  }
+}
+
+image(sim_k_k)
+
+#Spectral diagonality
+
+sd <- function(df1,df2)
+{
+  #compute matrix of new edges - i.e. B
+  g_1 <- graph.data.frame(df1,directed = FALSE)
+  adj_1 <- get.adjacency(g_1, sparse = TRUE,type=c("both"))
+  g_2 <- graph.data.frame(df2,directed = FALSE)
+  adj_2 <- get.adjacency(g_2, sparse = TRUE,type=c("both"))
+  ne <- adj_2 - adj_1
+  col.order <- dimnames(adj_1)[[1]]
+  row.order <- dimnames(adj_1)[[2]]
+  ne <- ne[row.order,col.order]
+  f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_1 %*% x) }
+  baev_1 <- arpack(f2, sym=TRUE, options=list(n=vcount(g_1), nev=q, ncv=q+3,
+                                              which="LM", maxiter=vcount(g_1)*12))
+  #compute multiplication of eigenvalues of A and matrix B
+  b_eigen <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
+  #hist(as.numeric(b_eigen))
+  image(b_eigen)
+}
+
+sd(t1,t5)
 
 sample_a <- edgelist_source
 sample_b <- edgelist_target
@@ -896,197 +998,16 @@ ppa <- function(m)
 
 
 
+####################### GARBAGE
+#UCLA
+#edgelist_source <- read.csv('/home/esavin/Link prediction/UCLA/201310.relationship',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+#edgelist_target <- read.csv('/home/esavin/Link prediction/UCLA/201403.relationship',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
+#edgelist_pred <- read.csv('/home/esavin/Link prediction/UCLA/201410.relationship',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
 
-
-
-#####################################
-###Spectral evolution test
-
-#CAIDA
-t1 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20040105.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t2 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20040503.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t3 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20041004.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t4 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20050307.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t5 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20050801.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t6 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20060102.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t7 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20060213.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t8 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070108.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t9 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070212.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t10 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20070813.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-t11 <- read.csv('/home/esavin/Link prediction/CAIDA/as-caida20071112.txt',sep = "\t",header = TRUE, row.names = NULL, col.names = c('as1','as2','relationship'))
-
-
-t2 <- unique(rbind(t1,t2))
-t3 <-unique(rbind(t2,t3))
-t4 <-unique(rbind(t4,t3))
-t5 <-unique(rbind(t5,t4))
-t6 <-unique(rbind(t6,t5))
-t7 <-unique(rbind(t7,t6))
-t8 <-unique(rbind(t8,t7))
-t9 <-unique(rbind(t9,t8))
-t10 <-unique(rbind(t10,t9))
-t11 <-unique(rbind(t11,t10))
-
+#edgelist_target <- unique(rbind(edgelist_source,edgelist_target))
+#edgelist_pred <-unique(rbind(edgelist_target,edgelist_pred))
 
 #Equate the number of nodes in source, target and test datasets
-outersect <- function (x,y)
-{
-  sort(c(setdiff(x,y),setdiff(y,x)))
-}
-
-equate_nodes <- function(df1,df2)
-{
-diff_as1 <- outersect(df1$as1,df2$as1)
-diff_as2 <- outersect(df1$as2,df2$as2)    
-
-while(length(diff_as1) > 0 & length(diff_as2) > 0)
-{  
-df1 <- df1[!(df1$as1 %in% diff_as1) & !(df1$as2 %in% diff_as2),]
-df2 <- df2[!(df2$as1 %in% diff_as1) & !(df2$as2 %in% diff_as2),]
-
-diff_as1 <- outersect(df1$as1,df2$as1)
-diff_as2 <- outersect(df1$as2,df2$as2)  
-
-#paste('Length of difference 1 is', print(length(diff_as1)))
-#paste('Length of difference 2 is', print(length(diff_as2)))
-}
-
-return (list(df1,df2))
-}
-
-t1 <- as.data.frame(equate_nodes(t1,t2)[1])
-t2 <- as.data.frame(equate_nodes(t1,t2)[2])
-t3 <- as.data.frame(equate_nodes(t1,t3)[2])
-t4 <- as.data.frame(equate_nodes(t1,t4)[2])
-t5 <- as.data.frame(equate_nodes(t1,t5)[2])
-t6 <- as.data.frame(equate_nodes(t1,t6)[2])
-t7 <- as.data.frame(equate_nodes(t1,t7)[2])
-t8 <- as.data.frame(equate_nodes(t1,t8)[2])
-t9 <- as.data.frame(equate_nodes(t1,t9)[2])
-t10 <- as.data.frame(equate_nodes(t1,t10)[2])
-t11 <- as.data.frame(equate_nodes(t1,t11)[2])
-
-
-#Define number of values to compute similarity metrics for
-q <- 10
-
-find_eigenvalues <- function(df)
-{
-g <- graph.data.frame(df,directed = FALSE)
-adj <- get.adjacency(g, sparse = TRUE,type=c("both"))
-f2 <- function(x, extra=NULL) { cat("."); as.vector(adj %*% x) }
-baev <- arpack(f2, sym=TRUE, options=list(n=vcount(g), nev=q, ncv=q+3,
-                                            which="LM", maxiter=vcount(g)*12))
-
-return (list(baev,ecount(g)))
-}
-
-tlist <- list(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
-
-#Find edge count and list of eigenvalues 
-#se denotes spectral evolution
-#se is an object that contains eigenvalue decomposition for 
-#t1-x timepoints together with the respective edge count
-se <- lapply(tlist,find_eigenvalues)
-
-##Spectral evolution of the network
-eigen_values <- Matrix(nrow=length(se), ncol = q)
-edge_count <- list()
-
-for (i in 1 : length(se))
-{  
-  for (j in 1: q)
-  {
-    eigen_values[i,j] <- se[[i]][[1]]$values[j]
-  }
-  edge_count[i] <- se[[i]][[2]]
-}
-
-plot(edge_count,eigen_values[,1],xlab = 'Edge count', ylab = 'Eigenvalues',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim = c(min(eigen_values),max(eigen_values))
-     ,main = 'Spectral evolution. Dominant values closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
-
-for (i in 2:length(se))
-{
-  lines(edge_count,eigen_values[,i],xlab = 'Edge count', ylab = 'Eigenvalues',type = 'b',col = hcl(h = 0+15*i, c = 100, l = 85),pch=20,cex = 1)
-}
-
-#Eigenvector evolution
-#Computes chart of eigenvector evolution
-sim_k_k <- Matrix(nrow=length(se), ncol = q)
-edge_count <- list()
-
-for (i in 1 : length(se))
-{  
-  for (j in 1: q)
-  {
-  sim_k_k[i,j] <- abs(cosine(as.vector(se[[i]][[1]]$vectors[,j]),as.vector(se[[1]][[1]]$vectors[,j])))
-  }
-  edge_count[i] <- se[[i]][[2]]
-}
-
-plot(edge_count,sim_k_k[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
-,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
-
-for (i in 2:length(se))
-{
-  lines(edge_count,sim_k_k[,i],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 0+15*i, c = 100, l = 85),pch=20,cex = 1)
-}
-
-plot(rep(edge_count[1],length(sim_k_k[1,])),sim_k_k[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
-     ,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
-
-for (i in 2:length(se))
-{
-  for (j in 1:(length(sim_k_k[i,])))
-  {
-    #    j<-11
-    lines(edge_count[i],sim_k_k[i,j],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 0+15*j, c = 100, l = 85),pch=20,cex = 1)
-  }
-}
-
-#Eigenvector stability
-#Computes stability of all the eigenvectors from time to time T
-#substitute with the required X for t and Y for T in 
-#se[[X]][[1]] and se[[Y]][[1]]
-sim_k_l <- Matrix(nrow=q, ncol = q)
-
-for (i in 1:q)
-{
-  for (j in 1:q)
-  {
-    sim_k_l[i,j] <- abs(cosine(as.vector(se[[1]][[1]]$vectors[,i]),as.vector(se[[2]][[1]]$vectors[,j])))
-  }
-}
-
-image(sim_k_l)
-
-#Spectral diagonality
-
-sd <- function(df1,df2)
-{
-#compute matrix of new edges - i.e. B
-  g_1 <- graph.data.frame(df1,directed = FALSE)
-  adj_1 <- get.adjacency(g_1, sparse = TRUE,type=c("both"))
-  g_2 <- graph.data.frame(df2,directed = FALSE)
-  adj_2 <- get.adjacency(g_2, sparse = TRUE,type=c("both"))
-  ne <- adj_2 - adj_1
-  col.order <- dimnames(adj_1)[[1]]
-  row.order <- dimnames(adj_1)[[2]]
-  ne <- ne[row.order,col.order]
-  f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_1 %*% x) }
-  baev_1 <- arpack(f2, sym=TRUE, options=list(n=vcount(g_1), nev=q, ncv=q+3,
-                                            which="LM", maxiter=vcount(g_1)*12))
-  #compute multiplication of eigenvalues of A and matrix B
-  b_eigen <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
-  #hist(as.numeric(b_eigen))
-  image(b_eigen)
-}
-
-sd(t2,t3)
-
-
-
-####################### GARBAGE
 
 
 coord_x <- list()
