@@ -985,24 +985,33 @@ tlist <- list(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
 
 #Find edge count and list of eigenvalues 
 #se denotes spectral evolution
+#se is an object that contains eigenvalue decomposition for 
+#t1-x timepoints together with the respective edge count
 se <- lapply(tlist,find_eigenvalues)
 
-coord_x <- list()
-coord_y <- list()
+##Spectral evolution of the network
+eigen_values <- Matrix(nrow=length(se), ncol = q)
+edge_count <- list()
 
 for (i in 1 : length(se))
-{
-  for (j in 1 : length(se[[1]][[1]]$values))
-  {  
-    coord_x = rbind(coord_x,se[[i]][[2]])
-    coord_y = rbind(coord_y,se[[i]][[1]]$values[j])
+{  
+  for (j in 1: q)
+  {
+    eigen_values[i,j] <- se[[i]][[1]]$values[j]
   }
+  edge_count[i] <- se[[i]][[2]]
 }
 
-plot(coord_x,coord_y,xlab = 'Edge count', ylab = 'Eigenvalues',ylim= c(-300,300))
+plot(edge_count,eigen_values[,1],xlab = 'Edge count', ylab = 'Eigenvalues',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim = c(min(eigen_values),max(eigen_values))
+     ,main = 'Spectral evolution. Dominant values closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
 
+for (i in 2:length(se))
+{
+  lines(edge_count,eigen_values[,i],xlab = 'Edge count', ylab = 'Eigenvalues',type = 'b',col = hcl(h = 0+15*i, c = 100, l = 85),pch=20,cex = 1)
+}
 
 #Eigenvector evolution
+#Computes chart of eigenvector evolution
 sim_k_k <- Matrix(nrow=length(se), ncol = q)
 edge_count <- list()
 
@@ -1015,26 +1024,37 @@ for (i in 1 : length(se))
   edge_count[i] <- se[[i]][[2]]
 }
 
-plot(rep(edge_count[1],length(sim_k_k[1,])),sim_k_k[1,],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
-,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])))
+plot(edge_count,sim_k_k[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
+,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
 
 for (i in 2:length(se))
 {
-  for (j in 1:(length(sim_k_k[i,])/4))
+  lines(edge_count,sim_k_k[,i],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 0+15*i, c = 100, l = 85),pch=20,cex = 1)
+}
+
+plot(rep(edge_count[1],length(sim_k_k[1,])),sim_k_k[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
+     ,main = 'Eigenvector stability. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
+
+for (i in 2:length(se))
+{
+  for (j in 1:(length(sim_k_k[i,])))
   {
-#    j<-11
-    lines(edge_count[i],sim_k_k[i,j],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'p',col = hcl(h = 0+15*j, c = 100, l = 85))
+    #    j<-11
+    lines(edge_count[i],sim_k_k[i,j],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 0+15*j, c = 100, l = 85),pch=20,cex = 1)
   }
 }
 
 #Eigenvector stability
+#Computes stability of all the eigenvectors from time to time T
+#substitute with the required X for t and Y for T in 
+#se[[X]][[1]] and se[[Y]][[1]]
 sim_k_l <- Matrix(nrow=q, ncol = q)
 
 for (i in 1:q)
 {
   for (j in 1:q)
   {
-    sim_k_l[i,j] <- cosine(as.vector(se[[1]][[1]]$vectors[,i]),as.vector(se[[4]][[1]]$vectors[,j]))
+    sim_k_l[i,j] <- abs(cosine(as.vector(se[[1]][[1]]$vectors[,i]),as.vector(se[[2]][[1]]$vectors[,j])))
   }
 }
 
@@ -1062,4 +1082,23 @@ sd <- function(df1,df2)
   image(b_eigen)
 }
 
-sd(t1,t4)
+sd(t2,t3)
+
+
+
+####################### GARBAGE
+
+
+coord_x <- list()
+coord_y <- list()
+
+for (i in 1 : length(se))
+{
+  for (j in 1 : length(se[[1]][[1]]$values))
+  {  
+    coord_x = rbind(coord_x,se[[i]][[2]])
+    coord_y = rbind(coord_y,se[[i]][[1]]$values[j])
+  }
+}
+
+plot(coord_x,coord_y,xlab = 'Edge count', ylab = 'Eigenvalues',ylim= c(-300,300))
