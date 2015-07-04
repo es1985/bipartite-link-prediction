@@ -165,6 +165,8 @@ image(sim_k_k)
 sd <- function(df1,df2)
 {
   #compute matrix of new edges - i.e. B
+  df1<-t1
+  df2<-t10
   g_1 <- graph.data.frame(df1,directed = FALSE)
   adj_1 <- get.adjacency(g_1, sparse = TRUE,type=c("both"))
   g_2 <- graph.data.frame(df2,directed = FALSE)
@@ -180,64 +182,32 @@ sd <- function(df1,df2)
   b_eigen <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
   #hist(as.numeric(b_eigen))
   image(b_eigen)
+  baev_1$values
 }
 
-sd(t1,t5)
+sd(t1,t10)
 
-sample_a <- edgelist_source
-sample_b <- edgelist_target
-sample_c <- edgelist_pred
+sample_a <- t1
+sample_b <- t10
+sample_c <- t11
 
 
 #set the number of eigenvalues to be caluclated
 
-r=100
+r=20
 
 g_a <- graph.data.frame(sample_a,directed = FALSE)
-#is.connected(g_a)
-#cl<-clusters(g_a)
-#g_a <- subgraph(g_a, which(cl$membership == which.max(cl$csize)))
-#is.connected(g_a)
-#vcount(g_a)
 adj_a <- get.adjacency(g_a, sparse = TRUE,type=c("both"))
-#image(adj_a)
-
-#calculate the eigenvalues and eigenvectors using ARPACK algorithm
-
-
 
 g_b <- graph.data.frame(sample_b,directed = FALSE)
-#is.connected(g_b)
-#cl<-clusters(g_b)
-#g_b <- subgraph(g_b, which(cl$membership == which.max(cl$csize)))
-#is.connected(g_b)
-#vcount(g_b)
-adj_b <- get.adjacency(g_b, sparse = TRUE)
+adj_b <- get.adjacency(g_b, sparse = TRUE,type=c("both"))
 col.order <- dimnames(adj_a)[[1]]
 row.order <- dimnames(adj_a)[[2]]
 adj_b <- adj_b[row.order,col.order]
-#image(adj_b)
-
-#sanity check - reconstruct the original matrix A
-#lamda = Matrix(0,  ncol = r,nrow = r)
-#diag(lamda) = baev_a$values
-#t<- baev_a$vectors %*% lamda %*% t(baev_a$vectors)
-#hist(as.numeric(t))
-#t<- rescale(t,to = c(0,1))
-#hist(as.numeric(t))
-#substitute values in a matrix
-#t[t<0.3] <- 0
-#t[t>0.3] <- 1
-#t<-Matrix(t,sparse = TRUE)
-#image(adj_a)
-#image(t)
-
 
 #Check the development of the prediction eigenvalues in comparison to target
 g_c <- graph.data.frame(sample_c,directed = FALSE)
-#V(g_c)$type <- V(g_c)$name %in% sample_c[,1]
-#get.edgelist(g_c) #to verify this was done properly
-adj_c <- get.adjacency(g_c, sparse = TRUE)
+adj_c <- get.adjacency(g_c, sparse = TRUE,type=c("both"))
 col.order <- dimnames(adj_a)[[1]]
 row.order <- dimnames(adj_a)[[2]]
 adj_c <- adj_c[row.order,col.order]
@@ -251,21 +221,11 @@ f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_b %*% x) }
 baev_b <- arpack(f2, sym=TRUE, options=list(n=vcount(g_b), nev=r, ncv=r+3,
                                             which="LM", maxiter=vcount(g_b)*12))
 
-#f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_c %*% x) }
-#baev_c <- arpack(f2, sym=TRUE, options=list(n=vcount(g_c), nev=r, ncv=r+3,
-#                                            which="LM", maxiter=vcount(g_c)*15))
-
-
 #compute matrix of new edges - i.e. B
 ne <- adj_b - adj_a
 col.order <- dimnames(adj_a)[[1]]
 row.order <- dimnames(adj_a)[[2]]
 ne <- ne[row.order,col.order]
-
-#image(adj_a)
-#image(adj_b)
-#image(ne)
-
 
 #normalise the spectra
 nlamda <- baev_a$values * abs(baev_a$values[1])/abs(baev_b$values[1])
@@ -344,14 +304,13 @@ dimnames(mp_a_neu) <- dimnames(adj_a)
 
 #
 netest <- adj_c - adj_b
-hist(as.numeric(netest))
-image(netest) #new edges
+#hist(as.numeric(netest))
+#image(netest) #new edges
 #substitute any multiple edges with just 1 edge
 netest[netest >= 1] <- 1
 netest[netest < 0] <- 0
 
 pred_a_polyn <- prediction(as.vector(mp_a_polyn),as.vector(netest))
-
 perf_a_polyn <- performance(pred_a_polyn, "tpr", "fpr")
 plot(perf_a_polyn)
 precision_recall_a_polyn <- performance(pred_a_polyn, "prec", "rec")
