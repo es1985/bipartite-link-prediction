@@ -165,8 +165,6 @@ image(sim_k_k)
 sd <- function(df1,df2)
 {
   #compute matrix of new edges - i.e. B
-  df1<-t1
-  df2<-t10
   g_1 <- graph.data.frame(df1,directed = FALSE)
   adj_1 <- get.adjacency(g_1, sparse = TRUE,type=c("both"))
   g_2 <- graph.data.frame(df2,directed = FALSE)
@@ -182,10 +180,9 @@ sd <- function(df1,df2)
   b_eigen <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
   #hist(as.numeric(b_eigen))
   image(b_eigen)
-  baev_1$values
 }
 
-sd(t1,t10)
+sd(t1,t4)
 
 sample_a <- t1
 sample_b <- t10
@@ -445,7 +442,7 @@ ne_n <- adj_b + t(adj_b) - (adj_a + t(adj_a))
 
 f2 <- function(x, extra=NULL) { cat("."); as.vector((adj_a_n + t(adj_a_n)) %*% x) }
 baev_a_n <- arpack(f2, sym=TRUE, options=list(n=vcount(g_a), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_a)*12))
+                                              which="LM", maxiter=vcount(g_a)*12))
 
 #compute multiplication of eigenvalues of A and matrix B
 b_eigen_n <- t(baev_a_n$vectors) %*% ne %*% baev_a_n$vectors
@@ -581,11 +578,11 @@ hist(as.numeric(adj_an))
 
 f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_an %*% x) }
 baev_an <- arpack(f2, sym=TRUE, options=list(n=vcount(g_a), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_a)*12))
+                                             which="LM", maxiter=vcount(g_a)*12))
 
 f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_bn %*% x) }
 baev_bn <- arpack(f2, sym=TRUE, options=list(n=vcount(g_b), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_b)*12))
+                                             which="LM", maxiter=vcount(g_b)*12))
 
 bla <- t(adj_an)
 
