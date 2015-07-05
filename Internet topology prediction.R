@@ -154,7 +154,7 @@ for (i in 1:q)
 {
   for (j in 1:q)
   {
-    sim_k_k[i,j] <- abs(cosine(as.vector(se[[1]][[1]]$vectors[,i]),as.vector(se[[9]][[1]]$vectors[,j])))
+    sim_k_k[i,j] <- abs(cosine(as.vector(se[[5]][[1]]$vectors[,i]),as.vector(se[[7]][[1]]$vectors[,j])))
   }
 }
 
@@ -167,26 +167,27 @@ sd <- function(df1,df2)
   #compute matrix of new edges - i.e. B
   g_1 <- graph.data.frame(df1,directed = FALSE)
   adj_1 <- get.adjacency(g_1, sparse = TRUE,type=c("both"))
-  g_2 <- graph.data.frame(df2,directed = FALSE)
-  adj_2 <- get.adjacency(g_2, sparse = TRUE,type=c("both"))
-  ne <- adj_2 - adj_1
   col.order <- dimnames(adj_1)[[1]]
   row.order <- dimnames(adj_1)[[2]]
+  g_2 <- graph.data.frame(df2,directed = FALSE)
+  adj_2 <- get.adjacency(g_2, sparse = TRUE,type=c("both"))
+  adj_2 <- adj_2[row.order,col.order]
+  ne <- adj_2 - adj_1
   ne <- ne[row.order,col.order]
   f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_1 %*% x) }
   baev_1 <- arpack(f2, sym=TRUE, options=list(n=vcount(g_1), nev=q, ncv=q+3,
                                               which="LM", maxiter=vcount(g_1)*12))
   #compute multiplication of eigenvalues of A and matrix B
-  b_eigen <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
+  b_eigen_1 <- t(baev_1$vectors) %*% ne %*% baev_1$vectors
   #hist(as.numeric(b_eigen))
-  image(b_eigen)
+  image(b_eigen_1)
 }
 
-sd(t1,t4)
+sd(t4,t7)
 
 sample_a <- t1
-sample_b <- t10
-sample_c <- t11
+sample_b <- t5
+sample_c <- t6
 
 
 #set the number of eigenvalues to be caluclated
@@ -215,8 +216,9 @@ baev_a <- arpack(f2, sym=TRUE, options=list(n=vcount(g_a), nev=r, ncv=r+3,
                                             which="LM", maxiter=vcount(g_a)*12))
 
 f2 <- function(x, extra=NULL) { cat("."); as.vector(adj_b %*% x) }
-baev_b <- arpack(f2, sym=TRUE, options=list(n=vcount(g_b), nev=r, ncv=r+3,
-                                            which="LM", maxiter=vcount(g_b)*12))
+baev_b <- arpack(f2, sym=TRUE, options=list(n=vcount(g_a), nev=r, ncv=r+3,
+                                            which="LM", maxiter=vcount(g_a)*12))
+
 
 #compute matrix of new edges - i.e. B
 ne <- adj_b - adj_a
@@ -225,7 +227,7 @@ row.order <- dimnames(adj_a)[[2]]
 ne <- ne[row.order,col.order]
 
 #normalise the spectra
-nlamda <- baev_a$values * abs(baev_a$values[1])/abs(baev_b$values[1])
+#nlamda <- baev_a$values * abs(baev_a$values[1])/abs(baev_b$values[1])
 
 #without normalisation
 #nlamda <- baev_a$values
