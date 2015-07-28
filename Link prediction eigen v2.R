@@ -12,42 +12,6 @@ options(java.parameters = "-Xmx4g")
 
 rm(list=ls(all=TRUE))
 
-jar1 <- "//home//esavin//teradata driver//terajdbc4.jar"
-jar2 <- "//home//esavin//teradata driver//tdgssconfig.jar"
-jars <- paste(jar1, jar2, sep = ":")
-
-print("opening db connection")
-tdconn <- function(id = 'esavin', pwd = 'Lisbon2015!', jarfiles = jars) {
-  drv = JDBC("com.teradata.jdbc.TeraDriver", jarfiles)
-  conn = dbConnect(drv, "jdbc:teradata://jaguar2.vip.paypal.com/TMODE=TERA", id, pwd)
-}
-
-conn = tdconn()
-
-queryS <- paste("select * from pp_oap_sing_es_t.transactions_source")
-edgelist_source <- dbGetQuery(conn, queryS)
-
-queryT <- paste("select * from pp_oap_sing_es_t.transactions_target")
-edgelist_target <- dbGetQuery(conn, queryT)
-
-queryP <- paste("select * from pp_oap_sing_es_t.transactions_pred")
-edgelist_pred <- dbGetQuery(conn, queryP)
-
-queryC <- paste("select * from pp_oap_sing_es_t.transactions_clients")
-client_list <- dbGetQuery(conn, queryC)
-
-queryM <- paste("select * from pp_oap_sing_es_t.transactions_merchants")
-merchant_list <- dbGetQuery(conn, queryM)
-
-print("closing db connection")
-dbDisconnect(conn)
-
-
-t1<-edgelist_source[,2:3]
-t2<-edgelist_target[,2:3]
-t3<-edgelist_pred[,2:3]
-
-
 #Define number of eigenvalues to be used with similarity metrics
 q <- 20
 
