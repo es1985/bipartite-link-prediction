@@ -106,7 +106,7 @@ for (i in 1 : length(se))
 }
 
 plot(edge_count,sim_k_l[,1],xlab = 'Edge count', ylab = 'Similarity (sim(k,k))',type = 'b',col = hcl(h = 15, c = 100, l = 85),ylim=c(0,1)
-     ,main = 'Eigenvector evolution Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
+     ,main = 'Eigenvector evolution. Dominant vectors closer to red',xlim=c(as.numeric(edge_count[1]),as.numeric(edge_count[length(edge_count)])),pch=20,cex = 1)
 
 for (i in 2:q)
 {
@@ -127,7 +127,7 @@ for (i in 1:q)
   }
 }
 
-image(sim_k_k)
+image(sim_k_k,main = "Eigenvector stability. 0 corresponds to white, 1 to black")
 
 #Spectral diagonality
 
@@ -363,11 +363,11 @@ plot(x=df$source,y=df$target)
 
 #Normalised path counting via polynomial
 n_polyn <-nls(formula = target ~ I(alpha*source) + I(beta*source^2) + I(gamma*source^3) + I(delta*source^4) + I(delta*source^5),start = c(alpha=0.01,beta=0.01,gamma=0.01,delta=0.01), data = df)
-summary(n_poly)
-sum(resid(n_poly)^2)
+summary(n_polyn)
+sum(resid(n_polyn)^2)
 new = data.frame(source = df$source)
 x=df$source
-y=predict(n_poly,new)
+y=predict(n_polyn,new)
 points(x,y,col = "green")
 
 #Normalised exponential kernel 
@@ -542,7 +542,7 @@ plot(perf_rr,col = "dark grey")
 ###NORMALISED ADJACENCY MATRIX ROC CURVES
 perf_n_exp <- performance(pred_n_exp, "tpr", "fpr")
 par(new = TRUE,lty = 2)
-plot(perf_n_exp,col = "orange")
+plot(perf_n_exp,col = "yellow 2")
 
 perf_n_neu <- performance(pred_n_neu, "tpr", "fpr")
 par(new = TRUE)
@@ -564,7 +564,7 @@ plot(perf_ppa, col = "dark blue")
 
 ###LAPLACIAN METRICS ROC CURVES
 perf_b_plus <- performance(pred_b_plus,"tpr","fpr")
-par(new=TRUE,lty = 4)
+par(new=TRUE,lty = 5)
 plot(perf_b_plus,col = "red")
 
 perf_b_l_n_plus <- performance(pred_b_l_n_plus,"tpr","fpr")
@@ -579,90 +579,150 @@ perf_l_hd <- performance(pred_l_hd,"tpr","fpr")
 par(new=TRUE)
 plot(perf_l_hd,col = "orangered")
 
+############################AUC calculation
+
+###ADJACENCY MATRIX auc calculation
+auc_a_polyn <- performance(pred_a_polyn, "auc")
+auc_a_exp <- performance(pred_a_exp, "auc")
+auc_a_neu <- performance(pred_a_neu, "auc")
+auc_rr <- performance(pred_rr, "auc")
+
+###NORMALISED ADJACENCY MATRIX auc calculation
+auc_n_exp <- performance(pred_n_exp, "auc")
+auc_n_neu <- performance(pred_n_neu, "auc")
+
+###LOCAL METRICS auc calculation
+auc_jacc <- performance(pred_jacc, "auc")
+auc_adar <- performance(pred_adar, "auc")
+auc_ppa <- performance(pred_ppa, "auc")
+
+###LAPLCAIAN MATRIX auc calculation
+auc_perf_b_plus <- performance(pred_b_plus, "auc")
+auc_b_l_n_plus <- performance(pred_b_l_n_plus,"auc")
+auc_l_reg <- performance(pred_l_reg,"auc")
+auc_l_hd <- performance(pred_l_hd,"auc")
 
 
 ############################Precision recall curves
 
-precision_recall_a_polyn <- performance(pred_a_polyn, "prec", "rec")
-plot(precision_recall_a_polyn,ylim = c(0,1),col = "black")
+###ADJACENCY MATRIX precision recall CURVES
+precision_recall_a_polyn <- performance(pred_a_polyn, measure = "prec", x.measure = "rec")
+par(lty=1)
+plot(precision_recall_a_polyn,ylim = c(0,0.1),col = "black")
 
 precision_recall_a_exp <- performance(pred_a_exp, "prec", "rec")
 par(new=TRUE)
-plot(precision_recall_a_exp,ylim = c(0,1),col = "yellow")
+plot(precision_recall_a_exp,ylim = c(0,0.1),col = "light grey")
 
 precision_recall_a_neu <- performance(pred_a_neu, "prec", "rec")
 par(new=TRUE)
-plot(precision_recall_a_neu,ylim=c(0,1),col="pink")
+plot(precision_recall_a_neu,ylim=c(0,0.1),col="grey")
 
 precision_recall_rr <- performance(pred_rr, "prec", "rec")
 par(new=TRUE)
-plot(precision_recall_rr,ylim=c(0,1),col="brown")
+plot(precision_recall_rr,ylim=c(0,0.1),col="dark grey")
 
+
+###NORMALISED ADJACENCY MATRIX PRECISION RECALL CURVES
 precision_recall_exp <- performance(pred_n_exp, "prec", "rec")
-par(new = TRUE)
-plot(precision_recall_exp,ylim=c(0,1),col = "orange")
+par(new = TRUE,lty=2)
+plot(precision_recall_exp,ylim=c(0,0.1),col = "orange")
 
 precision_recall_n_neu <- performance(pred_n_neu, "prec", "rec")
 par(new = TRUE)
-plot(precision_recall_n_neu,ylim=c(0,1),col = "light green")
+plot(precision_recall_n_neu,ylim=c(0,0.1),col = "yellow")
 
+
+###LOCAL METRICS PRECISION RECALL CURVES
 precision_recall_jacc <- performance(pred_jacc, "prec", "rec")
-par(new=TRUE)
-plot(precision_recall_jacc,ylim=c(0,1),col="blue")
+par(new=TRUE,lty=3)
+plot(precision_recall_jacc,ylim=c(0,0.1),col="light blue")
 
 precision_recall_adar <- performance(pred_adar, "prec", "rec")
 par(new=TRUE)
-plot(precision_recall_adar,ylim=c(0,1),col="green")
+plot(precision_recall_adar,ylim=c(0,0.1),col="blue")
 
 precision_recall_ppa <- performance(pred_ppa, "prec", "rec")
 par(new=TRUE)
-plot(precision_recall_ppa,ylim = c(0,1),col = "red")
+plot(precision_recall_ppa,ylim = c(0,0.1),col = "dark blue")
 
+
+###LAPLCAIAN MATRIX PRECISION RECALL CURVES
 precision_recall_perf_b_plus <- performance(pred_b_plus, "prec", "rec")
-par(new=TRUE)
-plot(precision_recall_perf_b_plus,ylim = c(0,1),col = "cyan")
+par(new=TRUE,lty=5)
+plot(precision_recall_perf_b_plus,ylim = c(0,0.1),col = "red")
 
 precision_recall_b_l_n_plus <- performance(pred_b_l_n_plus,"prec","rec")
 par(new=TRUE)
-plot(precision_recall_b_l_n_plus,ylim = c(0,1),col = "purple")
+plot(precision_recall_b_l_n_plus,ylim = c(0,0.1),col = "darkred")
 
 precision_recall_l_reg <- performance(pred_l_reg,"prec","rec")
 par(new=TRUE)
-plot(precision_recall_l_reg,ylim = c(0,1),col = "dark red")
+plot(precision_recall_l_reg,ylim = c(0,0.1),col = "red2")
 
 precision_recall_l_hd <- performance(pred_l_hd,"prec","rec")
 par(new=TRUE)
-plot(precision_recall_l_hd,ylim = c(0,1),col = "dark green")
+plot(precision_recall_l_hd,ylim = c(0,0.1),col = "orangered")
 
 
+###F measure calculation
+f_a_polyn <- performance(pred_a_polyn, "f")
+f_a_exp <- performance(pred_a_exp, "f")
+f_a_neu <- performance(pred_a_neu, "f")
+f_rr <- performance(pred_rr, "f")
 
-############################Phi values
+###NORMALISED ADJACENCY MATRIX f calculation
+f_n_exp <- performance(pred_n_exp, "f")
+f_n_neu <- performance(pred_n_neu, "f")
 
-precision_f_b_l_n_plus <- performance(pred_b_l_n_plus,"f")
+###LOCAL METRICS f calculation
+f_jacc <- performance(pred_jacc, "f")
+f_adar <- performance(pred_adar, "f")
+f_ppa <- performance(pred_ppa, "f")
 
-precision_f_a_polyn <- performance(pred_a_polyn,"f")
+###LAPLCAIAN MATRIX f calculation
+f_perf_b_plus <- performance(pred_b_plus, "f")
+f_b_l_n_plus <- performance(pred_b_l_n_plus,"f")
+f_l_reg <- performance(pred_l_reg,"f")
+f_l_hd <- performance(pred_l_hd,"f")
 
-precision_prbe_b_l_n_plus <- performance(pred_b_l_n_plus,"prbe")
+
+max(f_a_polyn@y.values[[1]][2:length(f_a_polyn@y.values[[1]])])
+max(f_a_exp@y.values[[1]][2:length(f_a_exp@y.values[[1]])])
+max(f_a_neu@y.values[[1]][2:length(f_a_neu@y.values[[1]])])
+
+max(f_n_exp@y.values[[1]][2:length(f_n_exp@y.values[[1]])])
+max(f_n_neu@y.values[[1]][2:length(f_n_neu@y.values[[1]])])
+
+max(f_jacc@y.values[[1]][2:length(f_jacc@y.values[[1]])])
+max(f_adar@y.values[[1]][2:length(f_adar@y.values[[1]])])
+max(f_ppa@y.values[[1]][2:length(f_ppa@y.values[[1]])])
+
+max(f_perf_b_plus@y.values[[1]][2:length(f_perf_b_plus@y.values[[1]])])
+max(f_b_l_n_plus@y.values[[1]][2:length(f_b_l_n_plus@y.values[[1]])])
+max(f_l_reg@y.values[[1]][2:length(f_l_reg@y.values[[1]])])
+max(f_l_hd@y.values[[1]][2:length(f_l_hd@y.values[[1]])])
 
 
 ##########################################Extract predictions
 
 cutoffs <- data.frame(cut=perf_rr@alpha.values[[1]], fpr=perf_rr@x.values[[1]], 
                       tpr=perf_rr@y.values[[1]])
-cutoffs <- cutoffs[order(cutoffs$tpr, decreasing=TRUE),]
+cutoffs <- cutoffs[order(cutoffs$fpr, decreasing=TRUE),]
 head(cutoffs)
-head(subset(cutoffs, fpr < 0.10))
+head(subset(cutoffs, fpr < 0.30))
 
 cutoffs <- data.frame(cut=precision_recall_rr@alpha.values[[1]], recall=precision_recall_rr@x.values[[1]], 
                       precision=precision_recall_rr@y.values[[1]])
 cutoffs <- cutoffs[order(cutoffs$precision, decreasing=TRUE),]
 head(cutoffs)
-head(subset(cutoffs, recall > 0.5))
+head(subset(cutoffs, precision > 0.5))
 
 ###Spectral extrapolation
 
 pred <- adj_b_rr
 dimnames(pred) <- dimnames(adj_a)
+hist(as.numeric(pred))
 
 pred[pred>=1] <- 1
 pred[pred<1] <- 0
@@ -674,14 +734,32 @@ for (i in 1:length(ind))
   k <- arrayInd(ind[i],dim(pred))
   rownames(pred)[k[,1]]
   colnames(pred)[k[,2]]
-  print(paste('Predicted negative score',pred[ind[i]],' for the the following link'))
+  print(paste('Predicted emergence of link',pred[ind[i]],' for the the following link'))
   print(mapply(`[[`, dimnames(pred), k))
-  print(paste('In reality the following value was observed in the adjacency matrix'))
+  print(paste('In reality the following value was observed in the test adjacency matrix'))
   print(adj_c[rownames(pred)[k[,1]],colnames(pred)[k[,2]]])
   print(paste('New edges matrix had the following value'))
   print(netest[rownames(pred)[k[,1]],colnames(pred)[k[,2]]])
   print("")
 }
+
+k <- arrayInd(ind,dim(pred))
+rownames(pred)[k[,1]]
+colnames(pred)[k[,2]]
+
+#Values greater than 1 are suggestion of repeat purchases that came true
+#om = old merchants
+om <- adj_c[rownames(pred)[k[,1]],colnames(pred)[k[,2]]]
+
+bla <- as.data.frame(om)
+om[om[,1]>0]
+
+#Values greater than 1 are suggestion of new merchants that came true
+#nm = new merchants
+nm <- netest[rownames(pred)[k[,1]],colnames(pred)[k[,2]]]
+bla <- melt(as.matrix(nm))
+
+bla <- as.matrix(nm[nm>0,])
 
 
 
